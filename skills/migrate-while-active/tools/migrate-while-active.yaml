@@ -1,0 +1,262 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_migration_manager_info:
+    source: ibmi-system
+    description: "Get the current state of the Migrate While Active environment including source/copy node states, migration stage, phase, and job information. Use this first to understand overall migration status."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 50
+    statement: |
+      SELECT ENTRY_TYPE, SOURCE_NODE_STATE, COPY_NODE_STATE,
+             MIGRATION_STAGE, MIGRATION_PHASE, PENDING_MIGRATION_PHASE,
+             MIGRATION_PHASE_DETAIL, MIGRATION_DETAIL_INFO_TEXT,
+             MIGRATION_INTERVAL_COUNT, QUALIFIED_JOB_NAME,
+             SOURCE_NODE, COPY_NODE, PRIMARY_NODE
+        FROM QSYS2.MIGRATION_MANAGER_INFO
+        ORDER BY ENTRY_TYPE
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "manager"
+
+  list_library_migration:
+    source: ibmi-system
+    description: "List library-based objects being tracked for migration to the copy node. Shows library, object name, type, tracking state, size, and failure information."
+    parameters:
+      - name: tracking_state_filter
+        type: string
+        description: "Filter by tracking state (e.g., 'MIGRATING', 'TRACKED', 'COMPLETED'). Leave empty for all states."
+        default: ""
+      - name: library_filter
+        type: string
+        description: "Filter by library name. Leave empty for all libraries."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT LIBRARY_NAME, OBJECT_NAME, OBJECT_TYPE, TRACKING_STATE,
+             INITIAL_TRACKING_TIME, OBJECT_SIZE, MIGRATION_START_TIME,
+             FAILURE_JOB_NAME, FAILURE_MESSAGE, TRACKING_LIST
+        FROM QSYS2.LIBRARY_MIGRATION_LIST
+        WHERE (:tracking_state_filter = '' OR TRACKING_STATE = UPPER(:tracking_state_filter))
+          AND (:library_filter = '' OR LIBRARY_NAME = UPPER(:library_filter))
+        ORDER BY LIBRARY_NAME, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "library-migration"
+
+  list_ifs_migration:
+    source: ibmi-system
+    description: "List IFS objects being tracked for migration to the copy node. Shows path, object type, tracking state, size, and failure information."
+    parameters:
+      - name: tracking_state_filter
+        type: string
+        description: "Filter by tracking state (e.g., 'MIGRATING', 'TRACKED'). Leave empty for all states."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT PATH_NAME, OBJECT_TYPE, TRACKING_STATE,
+             INITIAL_TRACKING_TIME, OBJECT_SIZE, MIGRATION_START_TIME,
+             FAILURE_JOB_NAME, FAILURE_MESSAGE
+        FROM QSYS2.IFS_MIGRATION_LIST
+        WHERE (:tracking_state_filter = '' OR TRACKING_STATE = UPPER(:tracking_state_filter))
+        ORDER BY PATH_NAME, OBJECT_TYPE
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "ifs-migration"
+
+  list_migrated_libraries:
+    source: ibmi-system
+    description: "List library-based objects that have successfully completed migration. Shows migration timing, success count, and object sizes. Useful for verifying migration completion."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Filter by library name. Leave empty for all libraries."
+        default: ""
+      - name: hours_ago
+        type: integer
+        description: "Only show objects migrated within the last N hours. Use 0 for no time filter."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT LIBRARY_NAME, OBJECT_NAME, OBJECT_TYPE,
+             INITIAL_TRACKING_TIME, MIGRATION_START_TIME, MIGRATION_END_TIME,
+             SUCCESSFUL_MIGRATION_COUNT, OBJECT_SIZE
+        FROM QSYS2.MIGRATED_LIBRARY
+        WHERE (:library_filter = '' OR LIBRARY_NAME = UPPER(:library_filter))
+          AND (:hours_ago = 0 OR MIGRATION_END_TIME > CURRENT TIMESTAMP - :hours_ago HOURS)
+        ORDER BY MIGRATION_END_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "migrated-objects"
+
+  list_migrated_ifs:
+    source: ibmi-system
+    description: "List IFS objects that have successfully completed migration. Shows migration timing, success count, and object sizes."
+    parameters:
+      - name: hours_ago
+        type: integer
+        description: "Only show objects migrated within the last N hours. Use 0 for no time filter."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT PATH_NAME, OBJECT_TYPE,
+             INITIAL_TRACKING_TIME, MIGRATION_START_TIME, MIGRATION_END_TIME,
+             SUCCESSFUL_MIGRATION_COUNT, OBJECT_SIZE
+        FROM QSYS2.MIGRATED_IFS
+        WHERE (:hours_ago = 0 OR MIGRATION_END_TIME > CURRENT TIMESTAMP - :hours_ago HOURS)
+        ORDER BY MIGRATION_END_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "migrated-objects"
+
+  list_migration_failures:
+    source: ibmi-system
+    description: "List library migration objects that have encountered failures. Filters to only entries with non-empty failure messages for quick problem identification."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of failures to return."
+        default: 100
+    statement: |
+      SELECT LIBRARY_NAME, OBJECT_NAME, OBJECT_TYPE, TRACKING_STATE,
+             OBJECT_SIZE, MIGRATION_START_TIME,
+             FAILURE_JOB_NAME, FAILURE_MESSAGE
+        FROM QSYS2.LIBRARY_MIGRATION_LIST
+        WHERE FAILURE_MESSAGE <> ''
+        ORDER BY MIGRATION_START_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "troubleshooting"
+
+  get_data_compression_factor:
+    source: ibmi-system
+    description: "List compression factors used for different types of compression in Migrate While Active. Shows IFS, OS, and overall compression ratios."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 20
+    statement: |
+      SELECT COMPRESSION_TYPE, COMPRESSION_FACTOR,
+             IFS_COMPRESSION_FACTOR, OS_COMPRESSION_FACTOR
+        FROM SYSIBMADM.DATA_COMPRESSION_FACTOR
+        ORDER BY COMPRESSION_TYPE
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "compression"
+
+  estimate_final_sync_time:
+    source: ibmi-system
+    description: "Estimate the time required to complete final synchronization of objects to the copy node. Critical for planning migration cutover windows."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 10
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.ESTIMATE_FINAL_SYNCHRONIZATION_TIME())
+        ORDER BY 1
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "estimation"
+
+  check_migration_network_bandwidth:
+    source: ibmi-system
+    description: "Measure network bandwidth to the copy node. Takes multiple measurements to calculate average, minimum, and maximum bandwidth values."
+    parameters:
+      - name: measurement_count
+        type: integer
+        description: "Number of bandwidth measurements to take."
+        default: 3
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 10
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.MIGRATION_NETWORK_BANDWIDTH(:measurement_count))
+        ORDER BY 1
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "migration"
+      category: "network"
+
+toolsets:
+  migrate_while_active_default:
+    title: "Migrate While Active Monitoring"
+    description: "Read-only tools for monitoring IBM i Migrate While Active environments, tracking library and IFS object migration progress, and estimating synchronization times."
+    tools:
+      - get_migration_manager_info
+      - list_library_migration
+      - list_ifs_migration
+      - list_migrated_libraries
+      - list_migrated_ifs
+      - list_migration_failures
+      - get_data_compression_factor
+      - estimate_final_sync_time
+      - check_migration_network_bandwidth

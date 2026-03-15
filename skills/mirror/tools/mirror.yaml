@@ -1,0 +1,324 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_mirror_status:
+    source: ibmi-system
+    description: "List the current Db2 Mirror replication status for SYSBAS and all configured IASPs. Shows replication state, role, NRG state, and auto-resume settings. Primary health check for mirror replication."
+    parameters:
+      - name: replication_state_filter
+        type: string
+        description: "Filter by replication state (e.g., 'ACTIVE', 'SUSPENDED', 'INACTIVE'). Leave empty for all states."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT IASP_NAME, REPLICATION_STATE, REPLICATION_DETAIL,
+             REPLICATION_DETAIL_INFO_TEXT, NRG_STATE,
+             PRIMARY_NODE, SECONDARY_NODE, ASP_STATE,
+             DEFAULT_INCLUSION_STATE, AUTO_RESUME, AUTO_TAKEOVER,
+             ENCRYPTED_RDMA, ENVIRONMENT_TYPE, ASP_NUMBER
+        FROM QSYS2.MIRROR_INFO
+        WHERE (:replication_state_filter = '' OR REPLICATION_STATE = UPPER(:replication_state_filter))
+        ORDER BY ASP_NUMBER
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "product"
+
+  list_mirror_cluster:
+    source: ibmi-system
+    description: "View cluster information about the Db2 Mirror nodes including node names, IP addresses, cluster name, and device domain. Essential for understanding the mirror topology."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT CLUSTER_NAME, DEVICE_DOMAIN_NAME,
+             PRIMARY_NODE_NAME, PRIMARY_NODE_PRIMARY_IP, PRIMARY_NODE_SECONDARY_IP,
+             SECONDARY_NODE_NAME, SECONDARY_NODE_PRIMARY_IP, SECONDARY_NODE_SECONDARY_IP
+        FROM QSYS2.MIRROR_CLUSTER_INFO
+        ORDER BY CLUSTER_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "product"
+
+  list_mirror_health_monitor:
+    source: ibmi-system
+    description: "Review Db2 Mirror Health Monitor configuration including storage thresholds, monitoring intervals, and suspend wait time per IASP."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT IASP_NAME, AVAILABLE_STORAGE_THRESHOLD, SUSPEND_WAIT_TIME,
+             CRITICAL_RESOURCE_CHECK_INTERVAL, RESOURCE_CHECK_INTERVAL,
+             LICENSE_EXPIRATION_THRESHOLD
+        FROM QSYS2.MIRROR_HEALTH_MONITOR_INFO
+        ORDER BY IASP_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "product"
+
+  list_mirror_takeover:
+    source: ibmi-system
+    description: "List takeover IP address groups and their current state. Shows preferred node, current node, IP addresses, and auto-switchback settings."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT GROUP_NAME, LOCAL_ADDRESS, IASP_NAME,
+             PREFERRED_NODE, CURRENT_NODE,
+             AUTO_SWITCHBACK, TEXT_DESCRIPTION
+        FROM QSYS2.MIRROR_TAKEOVER_INFO
+        ORDER BY GROUP_NAME, LOCAL_ADDRESS
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "product"
+
+  list_mirror_versions:
+    source: ibmi-system
+    description: "List mirror version entries showing version names, states, and activation times. Useful for tracking version compatibility between mirror nodes."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT ENTRY_NUMBER, STATE, ENTRY_SOURCE, VERSION_GROUP, VERSION_NAME,
+             ACTIVE_VERSION, PRIMARY_VERSION, SECONDARY_VERSION,
+             ACTIVATION_TIME, TEXT_DESCRIPTION, CHANGE_TIMESTAMP
+        FROM QSYS2.MIRROR_VERSION_LIST
+        ORDER BY ENTRY_NUMBER
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "product"
+
+  list_nrg_info:
+    source: ibmi-system
+    description: "Show network redundancy group (NRG) configuration including link counts, load balance settings, status, and traffic statistics."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT NRG_NAME, NRG_STATE, LINK_COUNT, ACTIVE_LINK_COUNT,
+             LOAD_BALANCE_LINK_COUNT, CONNECTIONS, LINK_FAILURES,
+             OUTBOUND_RDMA_BYTES, INBOUND_RDMA_BYTES,
+             OUTBOUND_MESSAGES, INBOUND_MESSAGES, TEXT_DESCRIPTION
+        FROM QSYS2.NRG_INFO
+        ORDER BY NRG_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "communication"
+
+  list_nrg_links:
+    source: ibmi-system
+    description: "List all NRG links with source/target addresses, link state, priority, and type. Use to check link health and connectivity issues."
+    parameters:
+      - name: nrg_name_filter
+        type: string
+        description: "Filter by NRG name (e.g., '*MIRROR'). Leave empty for all NRGs."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT NRG_NAME, SOURCE_ADDRESS, TARGET_ADDRESS,
+             LINK_STATE, LINK_PRIORITY, LINK_IN_USE,
+             LINE_DESCRIPTION, VIRTUAL_LAN_ID, RDMA_TYPE
+        FROM QSYS2.NRG_LINK_INFO
+        WHERE (:nrg_name_filter = '' OR NRG_NAME = UPPER(:nrg_name_filter))
+        ORDER BY NRG_NAME, LINK_PRIORITY
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "communication"
+
+  list_rdma_links:
+    source: ibmi-system
+    description: "Examine RDMA link information including traffic statistics, link state, and error counts. Use to monitor RDMA performance and identify links with issues."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT SOURCE_ADDRESS, TARGET_ADDRESS, LINK_STATE,
+             OUTBOUND_RDMA_BYTES, INBOUND_RDMA_BYTES,
+             OUTBOUND_MESSAGES, INBOUND_MESSAGES,
+             ACTIVE_CONNECTIONS, PASSIVE_CONNECTIONS, LINK_FAILURES,
+             DROPPED_PACKETS, OUT_OF_SEQUENCE_PACKETS,
+             LINE_DESCRIPTION, RDMA_TYPE
+        FROM QSYS2.RDMA_LINK_INFO
+        ORDER BY OUTBOUND_RDMA_BYTES DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "communication"
+
+  list_replication_criteria:
+    source: ibmi-system
+    description: "List replication criteria rules that determine which objects are included or excluded from Db2 Mirror replication."
+    parameters:
+      - name: iasp_filter
+        type: string
+        description: "Filter by IASP name (e.g., '*SYSBAS'). Leave empty for all IASPs."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT RULE_IDENTIFIER, APPLY_STATE, INCLUSION_STATE, APPLY_LABEL,
+             IASP_NAME, LIBRARY_NAME, OBJECT_TYPE, OBJECT_NAME,
+             RULE_SOURCE, REMOVABLE, RESTRICTED, FAILURE_MESSAGE
+        FROM QSYS2.REPLICATION_CRITERIA_INFO
+        WHERE (:iasp_filter = '' OR IASP_NAME = UPPER(:iasp_filter))
+        ORDER BY IASP_NAME, LIBRARY_NAME, OBJECT_TYPE, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "replication"
+
+  list_mirror_flight_recorder:
+    source: ibmi-system
+    description: "Review Db2 Mirror flight recorder configuration including retention, storage limits, error counts, and logging levels for all components."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT ARCHIVE_RETENTION_DAY_COUNT, MAX_SYSBAS_PERCENTAGE,
+             ENQUEUE_ERROR_COUNT, DEQUEUE_ERROR_COUNT, LOGGING_ERROR_COUNT,
+             FLIGHT_RECORDER_LOGGING_LEVEL,
+             ENGINE_CONTROLLER_LOGGING_LEVEL,
+             OBJECT_REPLICATION_MANAGER_LOGGING_LEVEL,
+             ENGINE_COMMUNICATION_LOGGING_LEVEL,
+             RCL_LOGGING_LEVEL, NRG_LOGGING_LEVEL,
+             RESYNC_LOGGING_LEVEL, HEALTH_MONITOR_LOGGING_LEVEL
+        FROM QSYS2.MIRROR_FLIGHT_RECORDER_INFO
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "serviceability"
+
+  list_confirm_reclone_security:
+    source: ibmi-system
+    description: "Show security objects that need confirmation before recloning. Lists objects present on source vs target and their tracking status."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT OBJECT_TYPE, OBJECT_NAME,
+             OBJECT_ON_SOURCE, OBJECT_ON_TARGET,
+             TRACKED_ON_SOURCE, TRACKED_ON_TARGET
+        FROM QSYS2.CONFIRM_RECLONE_SECURITY_OBJECTS
+        ORDER BY OBJECT_TYPE, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "reclone"
+
+  get_mirror_objectconnect_info:
+    source: ibmi-system
+    description: "Show the state and configuration of the mirror ObjectConnect subsystem including auto-start, job limits, and inactive time settings."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 10
+    statement: |
+      SELECT STATE, AUTO_START, MINIMUM_JOBS, MAXIMUM_JOBS, INACTIVE_TIME
+        FROM QSYS2.MIRROR_OBJECTCONNECT_INFO
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "mirror"
+      category: "product"
+
+toolsets:
+  mirror_default:
+    title: "Db2 Mirror Monitoring"
+    description: "Read-only tools for monitoring Db2 Mirror replication, cluster health, network redundancy, replication criteria, and resynchronization across all mirror categories."
+    tools:
+      - list_mirror_status
+      - list_mirror_cluster
+      - list_mirror_health_monitor
+      - list_mirror_takeover
+      - list_mirror_versions
+      - list_nrg_info
+      - list_nrg_links
+      - list_rdma_links
+      - list_replication_criteria
+      - list_mirror_flight_recorder
+      - list_confirm_reclone_security
+      - get_mirror_objectconnect_info

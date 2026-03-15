@@ -1,0 +1,341 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_journals:
+    source: ibmi-system
+    description: "List journals on the system with type, state, attached receiver, receiver counts, and message queue configuration. Optionally filter by library."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library to filter by, or '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of journals to return."
+        default: 100
+    statement: |
+      SELECT JOURNAL_NAME, JOURNAL_LIBRARY, JOURNAL_TYPE, JOURNAL_STATE,
+             ATTACHED_JOURNAL_RECEIVER_NAME, ATTACHED_JOURNAL_RECEIVER_LIBRARY,
+             NUMBER_JOURNAL_RECEIVERS, TOTAL_SIZE_JOURNAL_RECEIVERS,
+             JOURNALED_OBJECTS, JOURNALED_FILES, JOURNALED_MEMBERS,
+             MESSAGE_QUEUE, MESSAGE_QUEUE_LIBRARY, JOURNAL_TEXT
+        FROM QSYS2.JOURNAL_INFO
+        WHERE (:library_filter = '*ALL' OR JOURNAL_LIBRARY = :library_filter)
+        ORDER BY JOURNAL_LIBRARY, JOURNAL_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "journal"
+
+  list_journal_receivers:
+    source: ibmi-system
+    description: "List journal receivers with attach/detach timestamps, status, size, and entry counts. Optionally filter by library and journal name."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library to filter by, or '*ALL' for all libraries."
+        default: "*ALL"
+      - name: journal_name
+        type: string
+        description: "Journal name to filter by, or '*ALL' for all journals."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of receivers to return."
+        default: 100
+    statement: |
+      SELECT JOURNAL_RECEIVER_NAME, JOURNAL_RECEIVER_LIBRARY,
+             JOURNAL_NAME, JOURNAL_LIBRARY,
+             ATTACH_TIMESTAMP, DETACH_TIMESTAMP, STATUS, SIZE,
+             NUMBER_OF_JOURNAL_ENTRIES,
+             FIRST_SEQUENCE_NUMBER, LAST_SEQUENCE_NUMBER, THRESHOLD
+        FROM QSYS2.JOURNAL_RECEIVER_INFO
+        WHERE (:library_filter = '*ALL' OR JOURNAL_LIBRARY = :library_filter)
+          AND (:journal_name = '*ALL' OR JOURNAL_NAME = :journal_name)
+        ORDER BY ATTACH_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "receiver"
+
+  list_journaled_objects:
+    source: ibmi-system
+    description: "List objects being journaled by a specific journal including journaling options like images and omit settings."
+    parameters:
+      - name: journal_library
+        type: string
+        description: "Library containing the journal."
+        required: true
+      - name: journal_name
+        type: string
+        description: "Journal name."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 200
+    statement: |
+      SELECT OBJECT_NAME, OBJECT_LIBRARY, OBJECT_TYPE,
+             JOURNAL_IMAGES, OMIT_JOURNAL_ENTRY,
+             REMOTE_JOURNAL_FILTER, FILE_TYPE
+        FROM QSYS2.JOURNALED_OBJECTS
+        WHERE JOURNAL_NAME = :journal_name
+          AND JOURNAL_LIBRARY = :journal_library
+        ORDER BY OBJECT_LIBRARY, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "journaled-objects"
+
+  display_journal_entries:
+    source: ibmi-system
+    description: "Read journal entries from a specific journal. Supports filtering by time range. Returns entry timestamps, journal codes, entry types, object info, and user/job details."
+    parameters:
+      - name: journal_library
+        type: string
+        description: "Library containing the journal."
+        required: true
+      - name: journal_name
+        type: string
+        description: "Journal name."
+        required: true
+      - name: minutes_ago
+        type: integer
+        description: "Show entries from the last N minutes."
+        default: 60
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT ENTRY_TIMESTAMP, SEQUENCE_NUMBER, JOURNAL_CODE,
+             JOURNAL_ENTRY_TYPE, OBJECT, OBJECT_TYPE,
+             USER_NAME, JOB_NAME, JOB_USER, JOB_NUMBER,
+             PROGRAM_NAME, PROGRAM_LIBRARY, COUNT_OR_RRN,
+             RECEIVER_NAME, RECEIVER_LIBRARY
+        FROM TABLE(QSYS2.DISPLAY_JOURNAL(
+          JOURNAL_LIBRARY => :journal_library,
+          JOURNAL_NAME => :journal_name,
+          STARTING_TIMESTAMP => CURRENT TIMESTAMP - :minutes_ago MINUTES))
+        ORDER BY ENTRY_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "entries"
+
+  list_remote_journals:
+    source: ibmi-system
+    description: "List remote journal configurations including target database, journal state, delivery mode, and lag metrics."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of remote journals to return."
+        default: 50
+    statement: |
+      SELECT SOURCE_JOURNAL_LIBRARY, SOURCE_JOURNAL,
+             REMOTE_DATABASE_NAME, REMOTE_JOURNAL_LIBRARY, REMOTE_JOURNAL,
+             REMOTE_JOURNAL_STATE, REMOTE_JOURNAL_TYPE, DELIVERY_MODE,
+             ENTRIES_BEHIND, MAXIMUM_ENTRIES_BEHIND,
+             TIME_BEHIND, MAXIMUM_TIME_BEHIND,
+             LAST_CATCHUP_TIME, LAST_ACTIVE_TIME
+        FROM QSYS2.REMOTE_JOURNAL_INFO
+        ORDER BY SOURCE_JOURNAL_LIBRARY, SOURCE_JOURNAL
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "remote"
+
+  list_journal_receiver_chain:
+    source: ibmi-system
+    description: "Show the chain of journal receivers for a specific journal including previous/next receiver links, status, and sizes. Useful for understanding receiver history."
+    parameters:
+      - name: journal_library
+        type: string
+        description: "Library containing the journal."
+        required: true
+      - name: journal_name
+        type: string
+        description: "Journal name."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of receivers to return."
+        default: 50
+    statement: |
+      SELECT JOURNAL_RECEIVER_NAME, JOURNAL_RECEIVER_LIBRARY,
+             STATUS, SIZE, NUMBER_OF_JOURNAL_ENTRIES,
+             ATTACH_TIMESTAMP, DETACH_TIMESTAMP,
+             PREVIOUS_JOURNAL_RECEIVER_LIBRARY, PREVIOUS_JOURNAL_RECEIVER,
+             NEXT_JOURNAL_RECEIVER_LIBRARY, NEXT_JOURNAL_RECEIVER,
+             SAVE_TIMESTAMP
+        FROM QSYS2.JOURNAL_RECEIVER_INFO
+        WHERE JOURNAL_NAME = :journal_name
+          AND JOURNAL_LIBRARY = :journal_library
+        ORDER BY ATTACH_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "receiver"
+
+  list_large_journal_receivers:
+    source: ibmi-system
+    description: "Find the largest journal receivers across the system. Useful for identifying journals consuming excessive storage."
+    parameters:
+      - name: min_size_mb
+        type: integer
+        description: "Minimum receiver size in megabytes. Use 0 for all receivers."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of receivers to return."
+        default: 50
+    statement: |
+      SELECT JOURNAL_RECEIVER_NAME, JOURNAL_RECEIVER_LIBRARY,
+             JOURNAL_NAME, JOURNAL_LIBRARY,
+             STATUS, SIZE, NUMBER_OF_JOURNAL_ENTRIES,
+             ATTACH_TIMESTAMP, DETACH_TIMESTAMP, THRESHOLD
+        FROM QSYS2.JOURNAL_RECEIVER_INFO
+        WHERE SIZE >= :min_size_mb * 1048576
+        ORDER BY SIZE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "storage"
+
+  get_journal_detail:
+    source: ibmi-system
+    description: "Get detailed configuration for a specific journal including receiver management, ESD minimization, fixed-length data options, and cache settings."
+    parameters:
+      - name: journal_library
+        type: string
+        description: "Library containing the journal."
+        required: true
+      - name: journal_name
+        type: string
+        description: "Journal name."
+        required: true
+    statement: |
+      SELECT JOURNAL_NAME, JOURNAL_LIBRARY, JOURNAL_TYPE, JOURNAL_STATE,
+             ATTACHED_JOURNAL_RECEIVER_NAME, ATTACHED_JOURNAL_RECEIVER_LIBRARY,
+             DELETE_RECEIVER_OPTION, DELETE_RECEIVER_DELAY,
+             MANAGE_RECEIVER_OPTION, MANAGE_RECEIVER_DELAY,
+             RECEIVER_MAXIMUM_SIZE, JOURNAL_CACHE,
+             MINIMIZE_ESD_FOR_DATA_AREAS, MINIMIZE_ESD_FOR_FILES,
+             REMOVE_INTERNAL_ENTRIES, REMOVE_FIXED_LENGTH_DETAIL,
+             FIXED_LENGTH_DATA_INCLUDES_JOB_NAME,
+             FIXED_LENGTH_DATA_INCLUDES_USER_NAME,
+             FIXED_LENGTH_DATA_INCLUDES_PROGRAM_NAME,
+             JOURNALED_OBJECTS, JOURNALED_FILES, JOURNALED_IFS_OBJECTS,
+             JOURNAL_TEXT
+        FROM QSYS2.JOURNAL_INFO
+        WHERE JOURNAL_NAME = :journal_name
+          AND JOURNAL_LIBRARY = :journal_library
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "journal"
+
+  list_smapp_access_paths:
+    source: ibmi-system
+    description: "List access paths managed by System-Managed Access Path Protection (SMAPP). Shows schema, table, status, and estimated recovery time."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by status (e.g., 'PROTECTED', 'ACTIVE'). Leave empty for all."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of access paths to return."
+        default: 100
+    statement: |
+      SELECT SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME,
+             ASP_NUMBER, IASP_NAME, STATUS,
+             INELIGIBLE_REASON, ESTIMATED_RECOVERY
+        FROM QSYS2.SMAPP_ACCESS_PATHS
+        WHERE (:status_filter = '' OR STATUS = UPPER(:status_filter))
+        ORDER BY SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "access-paths"
+
+  get_audit_journal_data_mart_info:
+    source: ibmi-system
+    description: "Show information about audit journal data marts including the journal entry types being tracked, time ranges, and build status."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of data marts to return."
+        default: 50
+    statement: |
+      SELECT DATA_MART_LIBRARY, DATA_MART_TABLE,
+             JOURNAL_ENTRY_TYPE,
+             AUDIT_JOURNAL_STARTING_TIMESTAMP, AUDIT_JOURNAL_ENDING_TIMESTAMP,
+             BUILD_START, BUILD_END, BUILD_JOB, FAILURE_DETAIL
+        FROM QSYS2.AUDIT_JOURNAL_DATA_MART_INFO
+        ORDER BY DATA_MART_LIBRARY, DATA_MART_TABLE
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "audit"
+
+toolsets:
+  journal_default:
+    title: "Journal Management"
+    description: "Read-only tools for managing IBM i journals, journal receivers, journaled objects, remote journals, and audit journal data marts."
+    tools:
+      - list_journals
+      - list_journal_receivers
+      - list_journaled_objects
+      - display_journal_entries
+      - list_remote_journals
+      - list_journal_receiver_chain
+      - list_large_journal_receivers
+      - get_journal_detail
+      - list_smapp_access_paths
+      - get_audit_journal_data_mart_info

@@ -1,0 +1,38 @@
+{
+  "name": "ibmi-agent-skills",
+  "owner": {
+    "name": "Adam Shedivy",
+    "email": "ajshedivy@gmail.com"
+  },
+  "metadata": {
+    "description": "Agent skills for AI coding assistants to work with IBM i systems via SQL Services",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ibmi-sql-services",
+      "description": "23 agent skills covering all IBM i SQL Service categories — work management, database, security, storage, communication, journals, PTFs, spool, IFS, and more. 180 pre-built tools for QSYS2 and SYSTOOLS services.",
+      "version": "1.0.0",
+      "source": "./",
+      "author": {
+        "name": "Adam Shedivy",
+        "email": "ajshedivy@gmail.com"
+      },
+      "category": "system-administration",
+      "keywords": [
+        "ibm-i",
+        "db2",
+        "sql-services",
+        "qsys2",
+        "as400",
+        "iseries",
+        "database",
+        "system-administration",
+        "work-management",
+        "security",
+        "storage",
+        "journal"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,250 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_commands:
+    source: ibmi-system
+    description: "List CL commands on the IBM i system with library, type, and proxy information. Use this to discover available commands and their attributes in a specific library."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library name to filter commands (e.g., 'QSYS', 'QGPL'). Use '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of commands to return."
+        default: 100
+    statement: |
+      SELECT COMMAND_LIBRARY, COMMAND_NAME, COMMAND_PROCESSING_PROGRAM_LIBRARY,
+             COMMAND_PROCESSING_PROGRAM, PROXY_COMMAND, THREADSAFE,
+             VALIDITY_CHECKING_PROGRAM, TEXT_DESCRIPTION
+        FROM QSYS2.COMMAND_INFO
+        WHERE :library_filter = '*ALL' OR COMMAND_LIBRARY = UPPER(:library_filter)
+        ORDER BY COMMAND_LIBRARY, COMMAND_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "commands"
+
+  list_data_areas:
+    source: ibmi-system
+    description: "List data areas on the IBM i system showing their library, name, type, length, and current value."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library name to filter data areas. Use '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of data areas to return."
+        default: 100
+    statement: |
+      SELECT DATA_AREA_LIBRARY, DATA_AREA_NAME, DATA_AREA_TYPE,
+             LENGTH, DATA_AREA_VALUE, TEXT_DESCRIPTION
+        FROM QSYS2.DATA_AREA_INFO
+        WHERE :library_filter = '*ALL' OR DATA_AREA_LIBRARY = UPPER(:library_filter)
+        ORDER BY DATA_AREA_LIBRARY, DATA_AREA_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "data-areas"
+
+  get_data_area_value:
+    source: ibmi-system
+    description: "Get the value of a specific data area by name using the library list or a specific library."
+    parameters:
+      - name: data_area_name
+        type: string
+        description: "Name of the data area to retrieve."
+        required: true
+      - name: data_area_library
+        type: string
+        description: "Library containing the data area. Use '*LIBL' to search the library list."
+        default: "*LIBL"
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT DATA_AREA_LIBRARY, DATA_AREA_NAME, DATA_AREA_TYPE,
+             LENGTH, DATA_AREA_VALUE
+        FROM TABLE(QSYS2.DATA_AREA_INFO(UPPER(:data_area_name), :data_area_library))
+        ORDER BY DATA_AREA_LIBRARY
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "data-areas"
+
+  list_data_queues:
+    source: ibmi-system
+    description: "List data queues showing library, name, type, current message count, and maximum message length."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library name to filter data queues. Use '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of data queues to return."
+        default: 100
+    statement: |
+      SELECT DATA_QUEUE_LIBRARY, DATA_QUEUE_NAME, DATA_QUEUE_TYPE,
+             CURRENT_MESSAGES, MAXIMUM_MESSAGE_LENGTH, MAXIMUM_MESSAGES,
+             SEQUENCE, TEXT_DESCRIPTION
+        FROM QSYS2.DATA_QUEUE_INFO
+        WHERE :library_filter = '*ALL' OR DATA_QUEUE_LIBRARY = UPPER(:library_filter)
+        ORDER BY CURRENT_MESSAGES DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "data-queues"
+
+  list_environment_variables:
+    source: ibmi-system
+    description: "List environment variables. Can filter by type (SYSTEM or JOB) to show system-level or job-level environment variables."
+    parameters:
+      - name: env_type_filter
+        type: string
+        description: "Filter by type: 'SYSTEM' for system-level, 'JOB' for job-level. Leave empty for all."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of environment variables to return."
+        default: 100
+    statement: |
+      SELECT ENVIRONMENT_VARIABLE_NAME, ENVIRONMENT_VARIABLE_VALUE,
+             ENVIRONMENT_VARIABLE_TYPE, ENVIRONMENT_VARIABLE_CCSID
+        FROM QSYS2.ENVIRONMENT_VARIABLE_INFO
+        WHERE :env_type_filter = '' OR ENVIRONMENT_VARIABLE_TYPE = UPPER(:env_type_filter)
+        ORDER BY ENVIRONMENT_VARIABLE_TYPE, ENVIRONMENT_VARIABLE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "environment"
+
+  list_programs:
+    source: ibmi-system
+    description: "List ILE and OPM programs showing type, creation date, activation group, and attributes. Always specify a library — querying '*ALL' may be very slow on large systems."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library name to filter programs (e.g., 'MYLIB', 'QGPL'). Required for performance — avoid '*ALL' on large systems."
+        required: true
+      - name: program_type_filter
+        type: string
+        description: "Filter by program type: 'ILE' or 'OPM'. Leave empty for all types."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of programs to return."
+        default: 100
+    statement: |
+      SELECT PROGRAM_LIBRARY, PROGRAM_NAME, PROGRAM_TYPE, PROGRAM_ATTRIBUTE,
+             ACTIVATION_GROUP, CREATE_TIMESTAMP, PROGRAM_SIZE,
+             TEXT_DESCRIPTION
+        FROM QSYS2.PROGRAM_INFO
+        WHERE (:library_filter = '*ALL' OR PROGRAM_LIBRARY = UPPER(:library_filter))
+          AND (:program_type_filter = '' OR PROGRAM_TYPE = UPPER(:program_type_filter))
+        ORDER BY PROGRAM_LIBRARY, PROGRAM_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "programs"
+
+  list_exit_programs:
+    source: ibmi-system
+    description: "List registered exit programs showing exit point names and their associated exit programs."
+    parameters:
+      - name: exit_point_filter
+        type: string
+        description: "Filter by exit point name pattern (e.g., 'QIBM_QSY%'). Leave empty for all exit points."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of exit programs to return."
+        default: 100
+    statement: |
+      SELECT EXIT_POINT_NAME, EXIT_PROGRAM_NUMBER, EXIT_PROGRAM_LIBRARY,
+             EXIT_PROGRAM, EXIT_PROGRAM_DATA, TEXT_DESCRIPTION
+        FROM QSYS2.EXIT_PROGRAM_INFO
+        WHERE :exit_point_filter = '' OR EXIT_POINT_NAME LIKE UPPER(:exit_point_filter)
+        ORDER BY EXIT_POINT_NAME, EXIT_PROGRAM_NUMBER
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "exit-programs"
+
+  list_watches:
+    source: ibmi-system
+    description: "List watch sessions showing status, type, user, and configuration."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by watch status (e.g., 'ACTIVE', 'ENDED'). Leave empty for all."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of watch sessions to return."
+        default: 100
+    statement: |
+      SELECT SESSION_ID, STATUS, WATCH_SESSION_TYPE, USER_ID,
+             START_TIMESTAMP, WATCH_PROGRAM,
+             WATCH_PROGRAM_LIBRARY
+        FROM QSYS2.WATCH_INFO
+        WHERE :status_filter = '' OR STATUS = UPPER(:status_filter)
+        ORDER BY START_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "watches"
+
+toolsets:
+  application_default:
+    title: "Application Services"
+    description: "Read-only tools for querying IBM i application objects: commands, data areas, data queues, environment variables, programs, exit programs, and watches."
+    tools:
+      - list_commands
+      - list_data_areas
+      - get_data_area_value
+      - list_data_queues
+      - list_environment_variables
+      - list_programs
+      - list_exit_programs
+      - list_watches

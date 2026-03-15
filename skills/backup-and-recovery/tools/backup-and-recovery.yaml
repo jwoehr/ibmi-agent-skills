@@ -1,0 +1,180 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_save_file_info:
+    source: ibmi-system
+    description: "List save files with details including save timestamp, objects saved, library saved from, and save file size. A library filter is required for performance — the view scans all save files on the system."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Save file library to search (e.g., 'QGPL', 'BACKUP'). Required — unfiltered queries may time out."
+        required: true
+      - name: source_library_filter
+        type: string
+        description: "Filter by the library that was saved (e.g., 'APPLIB'). Leave empty for all source libraries."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of save file records to return."
+        default: 20
+    statement: |
+      SELECT SAVE_FILE_LIBRARY, SAVE_FILE, SAVE_TIMESTAMP,
+             OBJECTS_SAVED, LIBRARY_NAME, SAVE_COMMAND,
+             EARLIEST_POSSIBLE_RELEASE, SAVE_WHILE_ACTIVE
+        FROM QSYS2.SAVE_FILE_INFO
+        WHERE SAVE_FILE_LIBRARY = UPPER(:library_filter)
+          AND (:source_library_filter = '' OR LIBRARY_NAME = UPPER(:source_library_filter))
+        ORDER BY SAVE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "backup"
+      category: "save-files"
+
+  get_save_file_objects_view:
+    source: ibmi-system
+    description: "Search for objects across save files by name. Requires an object name filter — unfiltered queries will time out on most systems. Use get_save_file_objects_detail for inspecting a specific save file."
+    parameters:
+      - name: object_name_filter
+        type: string
+        description: "Object name to search for (supports pattern like 'CUST%'). Required for performance."
+        required: true
+      - name: library_filter
+        type: string
+        description: "Filter by save file library. Leave empty for all libraries."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of object records to return."
+        default: 50
+    statement: |
+      SELECT SAVE_FILE_LIBRARY, SAVE_FILE, LIBRARY_NAME,
+             OBJECT_NAME, OBJECT_TYPE, SAVE_TIMESTAMP,
+             OBJECT_SIZE, OBJECT_OWNER
+        FROM QSYS2.SAVE_FILE_OBJECTS
+        WHERE (:object_name_filter = '' OR OBJECT_NAME LIKE UPPER(:object_name_filter))
+          AND (:library_filter = '' OR SAVE_FILE_LIBRARY = UPPER(:library_filter))
+        ORDER BY SAVE_TIMESTAMP DESC
+        FETCH FIRST 50 ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "backup"
+      category: "save-file-objects"
+
+  get_save_file_objects_detail:
+    source: ibmi-system
+    description: "List objects in a specific save file using the TABLE FUNCTION variant. Faster and more targeted than the VIEW — requires specifying the save file name and library."
+    parameters:
+      - name: save_file
+        type: string
+        description: "Name of the save file to inspect (e.g., 'SAVF1')."
+        required: true
+      - name: save_file_library
+        type: string
+        description: "Library containing the save file (e.g., 'MYLIB')."
+        required: true
+      - name: object_type_filter
+        type: string
+        description: "Filter by object type (e.g., '*PGM', '*FILE'). Leave empty for all types."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of object records to return."
+        default: 100
+    statement: |
+      SELECT LIBRARY_NAME, OBJECT_NAME, OBJECT_TYPE,
+             SAVE_TIMESTAMP, OBJECT_SIZE, OBJECT_OWNER,
+             SPOOLED_FILE_NAME, SPOOLED_FILE_NUMBER, CREATE_TIMESTAMP
+        FROM TABLE(QSYS2.SAVE_FILE_OBJECTS(
+          SAVE_FILE => UPPER(:save_file),
+          SAVE_FILE_LIBRARY => UPPER(:save_file_library),
+          OBJECT_TYPE_FILTER => CASE WHEN :object_type_filter = '' THEN '*ALL' ELSE UPPER(:object_type_filter) END,
+          DETAILED_INFO => 'ALL'))
+        ORDER BY LIBRARY_NAME, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "backup"
+      category: "save-file-objects"
+
+  get_media_library_info:
+    source: ibmi-system
+    description: "Return media library (tape library) device information including device status, resource name, and configuration."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by device status (e.g., 'VARIED OFF', 'VARIED ON'). Leave empty for all statuses."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of media library entries to return."
+        default: 100
+    statement: |
+      SELECT DEVICE_NAME, DEVICE_STATUS, RESOURCE_NAME,
+             DEVICE_TYPE, DEVICE_MODEL,
+             DEVICE_DESCRIPTION
+        FROM QSYS2.MEDIA_LIBRARY_INFO
+        WHERE :status_filter = '' OR DEVICE_STATUS = UPPER(:status_filter)
+        ORDER BY DEVICE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "backup"
+      category: "media"
+
+  get_tape_cartridge_info:
+    source: ibmi-system
+    description: "Return information about tape cartridges including status, volume ID, location, and usage."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by cartridge status (e.g., 'AVAILABLE', 'MOUNTED'). Leave empty for all statuses."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of tape cartridge entries to return."
+        default: 100
+    statement: |
+      SELECT CARTRIDGE_ID, VOLUME_ID, STATUS, CATEGORY,
+             DEVICE_NAME, LOCATION, DENSITY,
+             WRITE_PROTECTED
+        FROM QSYS2.TAPE_CARTRIDGE_INFO
+        WHERE :status_filter = '' OR STATUS = UPPER(:status_filter)
+        ORDER BY CARTRIDGE_ID
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "backup"
+      category: "media"
+
+toolsets:
+  backup_and_recovery_default:
+    title: "Backup & Recovery"
+    description: "Read-only tools for querying save files, save file contents, media library devices, and tape cartridge inventory."
+    tools:
+      - get_save_file_info
+      - get_save_file_objects_view
+      - get_save_file_objects_detail
+      - get_media_library_info
+      - get_tape_cartridge_info

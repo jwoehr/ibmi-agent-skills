@@ -1,0 +1,203 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_active_jobs:
+    source: ibmi-system
+    description: "List active jobs with CPU usage, status, and thread counts. Optionally filter by subsystem name."
+    parameters:
+      - name: subsystem
+        type: string
+        description: "Subsystem name to filter by (e.g., 'QBATCH', 'QINTER'). Leave empty for all subsystems."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of jobs to return"
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_TYPE, JOB_STATUS, SUBSYSTEM, FUNCTION, CPU_TIME,
+             TEMPORARY_STORAGE, THREAD_COUNT, RUN_PRIORITY
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO(
+        SUBSYSTEM_LIST_FILTER => NULLIF(:subsystem, '')
+      ))
+      ORDER BY CPU_TIME DESC
+      FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "active-jobs"
+
+  get_job_info:
+    source: ibmi-system
+    description: "Get detailed information about a specific job by its qualified job name (number/user/name)."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'number/user/name' (e.g., '123456/QUSER/MYJOB')"
+        required: true
+    statement: |
+      SELECT * FROM TABLE(QSYS2.GET_JOB_INFO(:job_name))
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-detail"
+
+  list_scheduled_jobs:
+    source: ibmi-system
+    description: "List all scheduled jobs with their schedule dates, times, frequency, and status."
+    parameters: []
+    statement: |
+      SELECT SCHEDULED_JOB_NAME, SCHEDULED_DATE, SCHEDULED_TIME, STATUS,
+             FREQUENCY, RELATIVE_DAYS_OF_MONTH, DESCRIPTION
+      FROM QSYS2.SCHEDULED_JOB_INFO
+      ORDER BY SCHEDULED_DATE, SCHEDULED_TIME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "scheduled-jobs"
+
+  list_subsystems:
+    source: ibmi-system
+    description: "List active subsystems with aggregated job counts, CPU time, temporary storage, and thread totals."
+    parameters: []
+    statement: |
+      SELECT SUBSYSTEM, COUNT(*) AS JOB_COUNT,
+             SUM(CPU_TIME) AS TOTAL_CPU_TIME,
+             SUM(TEMPORARY_STORAGE) AS TOTAL_TEMP_STORAGE,
+             SUM(THREAD_COUNT) AS TOTAL_THREADS
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO(DETAILED_INFO => 'ALL'))
+      WHERE SUBSYSTEM IS NOT NULL
+      GROUP BY SUBSYSTEM
+      ORDER BY TOTAL_CPU_TIME DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "subsystems"
+
+  list_job_queues:
+    source: ibmi-system
+    description: "List job queues with their status, job counts, and active/held/released job breakdowns."
+    parameters: []
+    statement: |
+      SELECT JOB_QUEUE_NAME, JOB_QUEUE_LIBRARY, SUBSYSTEM_NAME,
+             NUMBER_OF_JOBS, STATUS, MAXIMUM_ACTIVE_JOBS,
+             ACTIVE_JOBS, HELD_JOBS, RELEASED_JOBS
+      FROM QSYS2.JOB_QUEUE_INFO
+      ORDER BY NUMBER_OF_JOBS DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-queues"
+
+  get_job_log_entries:
+    source: ibmi-system
+    description: "Retrieve recent job log entries for a specific job, ordered by most recent first."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'number/user/name' (e.g., '123456/QUSER/MYJOB')"
+        required: true
+    statement: |
+      SELECT MESSAGE_ID, MESSAGE_TYPE, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT,
+             FROM_PROGRAM, FROM_MODULE, MESSAGE_TIMESTAMP
+      FROM TABLE(QSYS2.JOBLOG_INFO(:job_name))
+      ORDER BY MESSAGE_TIMESTAMP DESC
+      FETCH FIRST 50 ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-logs"
+
+  find_long_running_sql:
+    source: ibmi-system
+    description: "Find active SQL statements that have been running the longest. Useful for identifying stuck or expensive queries."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return."
+        default: 20
+    statement: |
+      SELECT JOB_NAME, AUTHORIZATION_NAME,
+             TIMESTAMPDIFF(2, CAST(CURRENT_TIMESTAMP - SQL_STATEMENT_START_TIMESTAMP AS CHAR(22))) AS ELAPSED_SECONDS,
+             SQL_STATEMENT_TEXT, SUBSYSTEM
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO(DETAILED_INFO => 'ALL'))
+      WHERE SQL_STATEMENT_STATUS = 'ACTIVE'
+      ORDER BY ELAPSED_SECONDS DESC
+      FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "sql-activity"
+
+  find_jobs_by_user:
+    source: ibmi-system
+    description: "Find all jobs for a specific user across all statuses (active, queued, completed with output)."
+    parameters:
+      - name: user_name
+        type: string
+        description: "User profile name to search for."
+        required: true
+      - name: status_filter
+        type: string
+        description: "Job status filter: '*ALL', '*ACTIVE', '*JOBQ', '*OUTQ'."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of jobs to return."
+        default: 100
+    statement: |
+      SELECT JOB_NAME, JOB_TYPE, JOB_STATUS, SUBSYSTEM,
+             JOB_ENTERED_SYSTEM_TIME, JOB_ACTIVE_TIME
+      FROM TABLE(QSYS2.JOB_INFO(
+        JOB_USER_FILTER => UPPER(:user_name),
+        JOB_STATUS_FILTER => :status_filter
+      ))
+      ORDER BY JOB_ENTERED_SYSTEM_TIME DESC
+      FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-search"
+
+toolsets:
+  work_management_default:
+    title: "Work Management Tools"
+    description: "Tools for monitoring and inspecting IBM i jobs, subsystems, job queues, job logs, SQL activity, and scheduled jobs."
+    tools:
+      - list_active_jobs
+      - get_job_info
+      - list_scheduled_jobs
+      - list_subsystems
+      - list_job_queues
+      - get_job_log_entries
+      - find_long_running_sql
+      - find_jobs_by_user

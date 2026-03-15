@@ -1,0 +1,337 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_sysfiles:
+    source: ibmi-system
+    description: "List database files and their attributes from QSYS2.SYSFILES. Shows file name, library, type, record length, reuse deleted records setting, member count, and more. Use this for an inventory of files in a library or to check file-level attributes."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library name to filter files (e.g., 'MYLIB'). Use '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of files to return."
+        default: 100
+    statement: |
+      SELECT SYSTEM_TABLE_NAME AS FILE_NAME, SYSTEM_TABLE_SCHEMA AS LIBRARY,
+             TABLE_NAME, TABLE_SCHEMA, FILE_TYPE, SQL_OBJECT_TYPE,
+             TEXT_DESCRIPTION, MAXIMUM_RECORD_LENGTH AS RECORD_LENGTH,
+             REUSE_DELETED_RECORDS, NUMBER_MEMBERS, COMMON_CCSID AS CCSID,
+             VOLATILE, KEEP_IN_MEMORY
+        FROM QSYS2.SYSFILES
+        WHERE :library_filter = '*ALL' OR SYSTEM_TABLE_SCHEMA = UPPER(:library_filter)
+        ORDER BY SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "file-inventory"
+
+  get_partition_statistics:
+    source: ibmi-system
+    description: "Get partition-level statistics from QSYS2.SYSPARTITIONSTAT including row counts, deleted rows, data size, I/O operations, and index information. Useful for analyzing table health and identifying tables needing reorganization."
+    parameters:
+      - name: schema_filter
+        type: string
+        description: "Schema (library) to filter. Required to avoid full system scan."
+        required: true
+      - name: table_filter
+        type: string
+        description: "Table (file) name to filter. Leave empty for all tables in the schema."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 100
+    statement: |
+      SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_PARTITION,
+             SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME, SYSTEM_TABLE_MEMBER,
+             NUMBER_ROWS, NUMBER_DELETED_ROWS, DATA_SIZE,
+             AVGROWSIZE, NUMBER_PAGES, OVERFLOW,
+             NUMBER_DISTINCT_INDEXES, MAINTAINED_TEMPORARY_INDEX_SIZE,
+             INSERT_OPERATIONS, UPDATE_OPERATIONS, DELETE_OPERATIONS,
+             LOGICAL_READS, PHYSICAL_READS, SEQUENTIAL_READS, RANDOM_READS,
+             CREATE_TIMESTAMP, LAST_CHANGE_TIMESTAMP, LAST_USED_TIMESTAMP,
+             DAYS_USED_COUNT
+        FROM QSYS2.SYSPARTITIONSTAT
+        WHERE TABLE_SCHEMA = UPPER(:schema_filter)
+          AND (:table_filter = '' OR TABLE_NAME = UPPER(:table_filter))
+        ORDER BY TABLE_SCHEMA, TABLE_NAME, TABLE_PARTITION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "partition-statistics"
+
+  get_member_statistics:
+    source: ibmi-system
+    description: "Get member-level statistics from QSYS2.SYSMEMBERSTAT including row counts, deleted rows, last used timestamp, and data size. Useful for identifying unused or bloated members within physical files."
+    parameters:
+      - name: schema_filter
+        type: string
+        description: "Schema (library) to filter. Use '*ALL' for all schemas."
+        default: "*ALL"
+      - name: table_filter
+        type: string
+        description: "Table (file) name to filter. Leave empty for all tables."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of member rows to return."
+        default: 100
+    statement: |
+      SELECT TABLE_SCHEMA, TABLE_NAME, SYSTEM_TABLE_MEMBER,
+             TABLE_PARTITION, SOURCE_TYPE, TEXT_DESCRIPTION,
+             NUMBER_ROWS, NUMBER_DELETED_ROWS, DATA_SIZE,
+             CREATE_TIMESTAMP, LAST_CHANGE_TIMESTAMP,
+             LAST_USED_TIMESTAMP, DAYS_USED_COUNT,
+             LAST_SAVE_TIMESTAMP, LAST_RESTORE_TIMESTAMP
+        FROM QSYS2.SYSMEMBERSTAT
+        WHERE (:schema_filter = '*ALL' OR TABLE_SCHEMA = UPPER(:schema_filter))
+          AND (:table_filter = '' OR TABLE_NAME = UPPER(:table_filter))
+        ORDER BY TABLE_SCHEMA, TABLE_NAME, TABLE_PARTITION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "member-statistics"
+
+  object_statistics:
+    source: ibmi-system
+    description: "Get object statistics for a library using QSYS2.OBJECT_STATISTICS table function. Returns names, types, owner, creation date, last used, size, and description. Supports filtering by object type: '*ALL' for all, '*PGM' for programs, '*FILE' for files, '*SRVPGM' for service programs, '*ALLSIMPLE' for fast name-only listing."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library name to list objects from (e.g., 'MYLIB', 'QGPL')."
+        required: true
+      - name: object_type
+        type: string
+        description: "Object type filter: '*ALL', '*PGM', '*FILE', '*SRVPGM', '*MODULE', '*DTAARA', '*CMD', '*LIB', '*ALLSIMPLE'"
+        default: "*ALL"
+      - name: name_filter
+        type: string
+        description: "Filter object names by pattern (e.g., 'CUST%', 'ORD%') or '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT OBJNAME, OBJTYPE, OBJOWNER, OBJDEFINER,
+             OBJCREATED, LAST_USED_TIMESTAMP, DAYS_USED_COUNT,
+             OBJSIZE, OBJTEXT,
+             SOURCE_FILE_LIBRARY, SOURCE_FILE, SOURCE_FILE_MEMBER,
+             SOURCE_TIMESTAMP
+        FROM TABLE(QSYS2.OBJECT_STATISTICS(:library_name, :object_type))
+        WHERE (:name_filter = '*ALL'
+               OR OBJNAME LIKE UPPER(:name_filter))
+        ORDER BY LAST_USED_TIMESTAMP DESC NULLS LAST
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "object-statistics"
+
+  analyze_catalog:
+    source: ibmi-system
+    description: "Analyze the SQL catalog for inconsistencies using QSYS2.ANALYZE_CATALOG. Checks for constraint mismatches (DBXREF), orphan objects, or other catalog anomalies in a given library. Useful for database health checks."
+    parameters:
+      - name: option
+        type: string
+        description: "Analysis option: 'DBXREF' for cross-reference/constraint checks."
+        default: "DBXREF"
+      - name: library_name
+        type: string
+        description: "Library to analyze."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return."
+        default: 100
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.ANALYZE_CATALOG(
+          OPTION => :option,
+          LIBRARY_NAME => UPPER(:library_name)))
+        ORDER BY 1
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "catalog-analysis"
+
+  compare_file:
+    source: ibmi-system
+    description: "Compare data and attributes between two copies of a file using QSYS2.COMPARE_FILE. Compares structure, triggers, constraints, and data differences between files in two libraries. Ideal for verifying test vs. production parity."
+    parameters:
+      - name: library1
+        type: string
+        description: "First library (e.g., 'TEST')."
+        required: true
+      - name: file1
+        type: string
+        description: "File name in the first library."
+        required: true
+      - name: library2
+        type: string
+        description: "Second library (e.g., 'PROD')."
+        required: true
+      - name: file2
+        type: string
+        description: "File name in the second library."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of attribute differences to return."
+        default: 100
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.COMPARE_FILE(
+          LIBRARY1 => UPPER(:library1),
+          FILE1 => UPPER(:file1),
+          LIBRARY2 => UPPER(:library2),
+          FILE2 => UPPER(:file2)))
+        ORDER BY ATTRIBUTE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "file-comparison"
+
+  find_related_objects:
+    source: ibmi-system
+    description: "Find all objects dependent on a specific file using SYSTOOLS.RELATED_OBJECTS. Returns views, logical files, indexes, triggers, constraints, and programs that reference the file. Essential for impact analysis before changes."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library containing the file."
+        required: true
+      - name: file_name
+        type: string
+        description: "Name of the file to find dependents for."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of related objects to return."
+        default: 100
+    statement: |
+      SELECT *
+        FROM TABLE(SYSTOOLS.RELATED_OBJECTS(
+          LIBRARY_NAME => UPPER(:library_name),
+          FILE_NAME => UPPER(:file_name)))
+        ORDER BY 1
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "dependency-analysis"
+
+  validate_data:
+    source: ibmi-system
+    description: "Validate the content of a database file using SYSTOOLS.VALIDATE_DATA. Checks for data integrity issues such as invalid numeric data, truncation, or encoding problems. Use this to verify data quality after migrations or conversions."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library containing the file to validate."
+        required: true
+      - name: file_name
+        type: string
+        description: "Name of the file to validate."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of validation results to return."
+        default: 100
+    statement: |
+      SELECT *
+        FROM TABLE(SYSTOOLS.VALIDATE_DATA(
+          UPPER(:library_name), UPPER(:file_name)))
+        ORDER BY 1
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "data-validation"
+
+  find_unused_objects:
+    source: ibmi-system
+    description: "Find objects in a library that have not been used in a specified number of days. Useful for cleanup and identifying dead code or unused database files."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library to search for unused objects."
+        required: true
+      - name: object_type
+        type: string
+        description: "Object type: '*ALL', '*PGM', '*FILE', '*SRVPGM', etc."
+        default: "*ALL"
+      - name: unused_days
+        type: integer
+        description: "Number of days since last use to consider unused (e.g., 365, 730)."
+        default: 365
+      - name: limit
+        type: integer
+        description: "Maximum results to return."
+        default: 100
+    statement: |
+      SELECT OBJNAME, OBJTYPE, OBJOWNER,
+             OBJCREATED, LAST_USED_TIMESTAMP, DAYS_USED_COUNT,
+             OBJSIZE, OBJTEXT
+        FROM TABLE(QSYS2.OBJECT_STATISTICS(:library_name, :object_type))
+        WHERE (LAST_USED_TIMESTAMP IS NULL
+               OR LAST_USED_TIMESTAMP < CURRENT_TIMESTAMP - :unused_days DAYS)
+        ORDER BY LAST_USED_TIMESTAMP ASC NULLS FIRST
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-utility"
+      category: "object-cleanup"
+
+toolsets:
+  database_utility_default:
+    title: "Database Utility Tools"
+    description: "Read-only tools for database file inventory, partition and member statistics, object analysis, catalog health checks, file comparison, dependency analysis, data validation, and unused object detection."
+    tools:
+      - list_sysfiles
+      - get_partition_statistics
+      - get_member_statistics
+      - object_statistics
+      - analyze_catalog
+      - compare_file
+      - find_related_objects
+      - validate_data
+      - find_unused_objects

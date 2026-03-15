@@ -1,0 +1,237 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_plan_cache_services:
+    source: ibmi-system
+    description: "List all available plan cache SQL services from QSYS2.SERVICES_INFO. Shows the service name, schema, object type, and minimum release for each plan cache service. Use this to discover available plan cache management capabilities."
+    parameters: []
+    statement: |
+      SELECT SERVICE_SCHEMA_NAME, SERVICE_NAME, SQL_OBJECT_TYPE,
+             EARLIEST_POSSIBLE_RELEASE
+        FROM QSYS2.SERVICES_INFO
+        WHERE SERVICE_CATEGORY = 'DATABASE-PLAN CACHE'
+        ORDER BY SERVICE_NAME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-plan-cache"
+      category: "service-catalog"
+
+  get_plan_cache_procedure_details:
+    source: ibmi-system
+    description: "Get detailed parameter information for a specific plan cache procedure. Returns parameter names, modes, data types, and positions. Use this to understand how to call a plan cache procedure."
+    parameters:
+      - name: procedure_name
+        type: string
+        description: "Plan cache procedure name (e.g., 'DUMP_PLAN_CACHE', 'DUMP_PLAN_CACHE_TOPN', 'START_PLAN_CACHE_EVENT_MONITOR', 'CHANGE_PLAN_CACHE_SIZE', 'CLEAR_PLAN_CACHE')."
+        required: true
+    statement: |
+      SELECT r.ROUTINE_NAME, p.PARAMETER_NAME, p.PARAMETER_MODE,
+             p.DATA_TYPE, p.CHARACTER_MAXIMUM_LENGTH, p.NUMERIC_PRECISION,
+             p.ORDINAL_POSITION
+        FROM QSYS2.SYSPARMS p
+        JOIN QSYS2.SYSROUTINES r
+          ON p.SPECIFIC_SCHEMA = r.SPECIFIC_SCHEMA
+         AND p.SPECIFIC_NAME = r.SPECIFIC_NAME
+        WHERE r.ROUTINE_SCHEMA = 'QSYS2'
+          AND r.ROUTINE_NAME = UPPER(:procedure_name)
+        ORDER BY p.ORDINAL_POSITION
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-plan-cache"
+      category: "procedure-info"
+
+  list_plan_cache_snapshots:
+    source: ibmi-system
+    description: "List existing plan cache snapshot files across all libraries. Shows snapshot files created by DUMP_PLAN_CACHE, DUMP_PLAN_CACHE_TOPN, or DUMP_PLAN_CACHE_PROPERTIES. Use this to find available snapshot data for analysis."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library to search for snapshot files. Use '*ALL' to search all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of snapshot files to return."
+        default: 50
+    statement: |
+      SELECT OBJLIB AS LIBRARY, OBJNAME AS FILE_NAME,
+             OBJSIZE, OBJTEXT,
+             OBJCREATED, LAST_USED_TIMESTAMP
+        FROM TABLE(QSYS2.OBJECT_STATISTICS(
+          CASE WHEN :library_filter = '*ALL' THEN '*ALLUSR' ELSE UPPER(:library_filter) END,
+          '*FILE'))
+        WHERE OBJNAME LIKE 'QQQ%'
+           OR OBJTEXT LIKE '%Plan Cache%'
+           OR OBJTEXT LIKE '%PLAN CACHE%'
+           OR OBJTEXT LIKE '%plan cache%'
+        ORDER BY OBJCREATED DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-plan-cache"
+      category: "snapshot-inventory"
+
+  get_plan_cache_snapshot_info:
+    source: ibmi-system
+    description: "Get metadata about a specific plan cache snapshot file including its size, row count, and creation date. Use this to verify a snapshot file exists before querying it."
+    parameters:
+      - name: snapshot_schema
+        type: string
+        description: "Library containing the snapshot file (e.g., 'QTEMP', 'MYLIB')."
+        required: true
+      - name: snapshot_file
+        type: string
+        description: "Name of the snapshot file (e.g., 'PCSNAP', 'PCTOP50')."
+        required: true
+    statement: |
+      SELECT OBJLIB AS LIBRARY, OBJNAME AS FILE_NAME,
+             OBJSIZE, OBJTEXT, OBJCREATED,
+             LAST_USED_TIMESTAMP, DAYS_USED_COUNT
+        FROM TABLE(QSYS2.OBJECT_STATISTICS(
+          UPPER(:snapshot_schema), '*FILE', UPPER(:snapshot_file)))
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-plan-cache"
+      category: "snapshot-analysis"
+
+  list_plan_cache_event_monitors:
+    source: ibmi-system
+    description: "List database monitors that may include plan cache event monitor data. Shows active and inactive monitors from QSYS2.DATABASE_MONITOR_INFO. Plan cache event monitors are started with START_PLAN_CACHE_EVENT_MONITOR."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of monitors to return."
+        default: 50
+    statement: |
+      SELECT MONITOR_ID, MONITOR_TYPE, MONITOR_STATUS,
+             MONITOR_LIBRARY, MONITOR_FILE, MONITOR_MEMBER,
+             NUMBER_ROWS, DATA_SIZE,
+             MONITOR_JOB_FILTER, USER_FILTER
+        FROM QSYS2.DATABASE_MONITOR_INFO
+        ORDER BY MONITOR_STATUS DESC, MONITOR_ID
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-plan-cache"
+      category: "event-monitors"
+
+  get_plan_cache_size_info:
+    source: ibmi-system
+    description: "Get current plan cache memory usage by examining the QSQSRVR server jobs which manage the SQL plan cache. Shows job memory usage, CPU, and status for database server jobs."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of jobs to return."
+        default: 25
+    statement: |
+      SELECT JOB_NAME, JOB_STATUS, SUBSYSTEM, MEMORY_POOL,
+             TEMPORARY_STORAGE AS TEMP_STORAGE_MB,
+             CPU_TIME, TOTAL_DISK_IO_COUNT,
+             ELAPSED_CPU_PERCENTAGE, ELAPSED_TOTAL_DISK_IO_COUNT,
+             FUNCTION_TYPE, FUNCTION
+        FROM TABLE(QSYS2.ACTIVE_JOB_INFO(
+          JOB_NAME_FILTER => 'QSQSRVR'))
+        ORDER BY TEMPORARY_STORAGE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-plan-cache"
+      category: "plan-cache-sizing"
+
+  get_plan_cache_management_sql:
+    source: ibmi-system
+    description: "Generate ready-to-use SQL CALL statements for common plan cache management operations. Returns a reference list of plan cache procedures with their proper parameter syntax. Use this as a quick reference when you need to manage the plan cache."
+    parameters: []
+    statement: |
+      SELECT 'DUMP_PLAN_CACHE' AS OPERATION,
+             'Snapshot the entire plan cache to a file' AS PURPOSE,
+             'CALL QSYS2.DUMP_PLAN_CACHE(FILESCHEMA => ''MYLIB'', FILENAME => ''PCSNAP'')' AS SQL_SYNTAX
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'DUMP_PLAN_CACHE_TOPN',
+             'Snapshot the top N most expensive queries',
+             'CALL QSYS2.DUMP_PLAN_CACHE_TOPN(FILESCHEMA => ''MYLIB'', FILENAME => ''PCTOP'', TOPN => 50, CATEGORY => ''TOTAL_TIME'')'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'DUMP_PLAN_CACHE_PROPERTIES',
+             'Snapshot plan cache configuration properties',
+             'CALL QSYS2.DUMP_PLAN_CACHE_PROPERTIES(FILESCHEMA => ''MYLIB'', FILENAME => ''PCPROPS'')'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'DUMP_SNAP_SHOT_PROPERTIES',
+             'Snapshot current snapshot properties',
+             'CALL QSYS2.DUMP_SNAP_SHOT_PROPERTIES(FILESCHEMA => ''MYLIB'', FILENAME => ''SSPROPS'')'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'START_PLAN_CACHE_EVENT_MONITOR',
+             'Start monitoring plan cache events',
+             'CALL QSYS2.START_PLAN_CACHE_EVENT_MONITOR(FILESCHEMA => ''MYLIB'', FILENAME => ''PCMON'')'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'END_PLAN_CACHE_EVENT_MONITOR',
+             'Stop a specific plan cache event monitor',
+             'CALL QSYS2.END_PLAN_CACHE_EVENT_MONITOR(MONITORID => ''MONITORNAME'')'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'CHANGE_PLAN_CACHE_SIZE',
+             'Resize the plan cache memory allocation',
+             'CALL QSYS2.CHANGE_PLAN_CACHE_SIZE(SIZE_IN_MEG => 2048)'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'CLEAR_PLAN_CACHE',
+             'Remove all entries from the plan cache',
+             'CALL QSYS2.CLEAR_PLAN_CACHE()'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'IMPORT_PC_SNAPSHOT',
+             'Import a previously exported plan cache snapshot',
+             'CALL QSYS2.IMPORT_PC_SNAPSHOT(PLAN_CACHE_LIBRARY => ''MYLIB'', PLAN_CACHE_FILE => ''PCSNAP'', IMPORTED_NAME => ''MYIMPORT'')'
+        FROM SYSIBM.SYSDUMMY1
+      UNION ALL
+      SELECT 'REMOVE_PC_SNAPSHOT',
+             'Remove an imported plan cache snapshot',
+             'CALL QSYS2.REMOVE_PC_SNAPSHOT(PLAN_CACHE_LIBRARY => ''MYLIB'', PLAN_CACHE_FILE => ''PCSNAP'')'
+        FROM SYSIBM.SYSDUMMY1
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-plan-cache"
+      category: "reference"
+
+toolsets:
+  database_plan_cache_default:
+    title: "Database Plan Cache Tools"
+    description: "Tools for exploring plan cache services, querying snapshots, monitoring event monitors, and generating plan cache management SQL. Most plan cache operations require CALL statements - use get_plan_cache_management_sql for ready-to-use syntax."
+    tools:
+      - list_plan_cache_services
+      - get_plan_cache_procedure_details
+      - list_plan_cache_snapshots
+      - get_plan_cache_snapshot_info
+      - list_plan_cache_event_monitors
+      - get_plan_cache_size_info
+      - get_plan_cache_management_sql

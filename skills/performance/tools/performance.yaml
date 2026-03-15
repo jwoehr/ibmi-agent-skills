@@ -1,0 +1,166 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_collection_services_config:
+    source: ibmi-system
+    description: "Get the current configuration of Collection Services including active collection, intervals, retention, and monitoring settings."
+    parameters: []
+    statement: |
+      SELECT ACTIVE_COLLECTION_LIBRARY, ACTIVE_COLLECTION_NAME,
+             ACTIVE_COLLECTION_PROFILE, ACTIVE_COLLECTION_START_TIME,
+             COLLECTION_LIBRARY, COLLECTION_PROFILE,
+             DEFAULT_COLLECTION_INTERVAL, MGTCOL_RETENTION_PERIOD,
+             CYCLE_TIME, CYCLE_INTERVAL,
+             CREATE_STANDARD_DB_FILES, RETENTION_DAYS,
+             CREATE_SUMMARY_DB_FILES,
+             ENABLE_SYSTEM_MONITORING, CATEGORY_LIST_COUNT
+        FROM QSYS2.COLLECTION_SERVICES_INFO
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "performance"
+      category: "collection-services"
+
+  get_collection_categories:
+    source: ibmi-system
+    description: "Get Collection Services category settings and their collection intervals. Shows what data is being collected and how often."
+    parameters: []
+    statement: |
+      SELECT cs_category, cs_interval
+        FROM QSYS2.COLLECTION_SERVICES_INFO,
+             LATERAL (SELECT * FROM JSON_TABLE(CATEGORY_LIST, 'lax $.category_list[*]'
+             COLUMNS(cs_category CLOB(1K) CCSID 1208 PATH 'lax $."category"',
+                     cs_interval CLOB(1K) CCSID 1208 PATH 'lax $."interval"'))) a
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "performance"
+      category: "collection-services"
+
+  get_temp_storage_buckets:
+    source: ibmi-system
+    description: "Get information about named temporary storage bucket usage. Shows current and peak sizes for named system storage areas."
+    parameters: []
+    statement: |
+      SELECT GLOBAL_BUCKET_NAME AS NAME,
+             BUCKET_CURRENT_SIZE AS CURRENT_SIZE,
+             BUCKET_PEAK_SIZE AS PEAK_SIZE
+        FROM QSYS2.SYSTMPSTG
+        WHERE GLOBAL_BUCKET_NAME IS NOT NULL
+        ORDER BY BUCKET_CURRENT_SIZE DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "performance"
+      category: "temp-storage"
+
+  get_unnamed_temp_storage:
+    source: ibmi-system
+    description: "Get total usage of unnamed temporary storage buckets. Useful for understanding overall temporary storage consumption outside of named buckets."
+    parameters: []
+    statement: |
+      SELECT SUM(BUCKET_CURRENT_SIZE) AS CURRENT_SIZE,
+             SUM(BUCKET_PEAK_SIZE) AS PEAK_SIZE
+        FROM QSYS2.SYSTMPSTG
+        WHERE GLOBAL_BUCKET_NAME IS NULL
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "performance"
+      category: "temp-storage"
+
+  get_temp_storage_by_job:
+    source: ibmi-system
+    description: "Show temporary storage consumption by job. Identifies which jobs are using the most temporary storage, useful for troubleshooting storage growth."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of jobs to return"
+        default: 25
+    statement: |
+      SELECT JOB_NAME, JOB_USER_NAME, JOB_NUMBER, JOB_STATUS,
+             BUCKET_CURRENT_SIZE AS CURRENT_SIZE,
+             BUCKET_PEAK_SIZE AS PEAK_SIZE,
+             BUCKET_LIMIT_SIZE AS LIMIT_SIZE
+        FROM QSYS2.SYSTMPSTG
+        WHERE JOB_NAME IS NOT NULL
+        ORDER BY BUCKET_CURRENT_SIZE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "performance"
+      category: "temp-storage"
+
+  get_disk_io_performance:
+    source: ibmi-system
+    description: "Get elapsed disk I/O performance statistics per disk unit including busy percentage, read/write requests, and data transfer rates."
+    parameters: []
+    statement: |
+      SELECT UNIT_NUMBER, ASP_NUMBER, DISK_TYPE,
+             ELAPSED_TIME, ELAPSED_IO_REQUESTS,
+             ELAPSED_READ_REQUESTS, ELAPSED_WRITE_REQUESTS,
+             ELAPSED_DATA_READ, ELAPSED_DATA_WRITTEN,
+             ELAPSED_PERCENT_BUSY
+        FROM QSYS2.SYSDISKSTAT
+        WHERE ELAPSED_IO_REQUESTS > 0
+        ORDER BY ELAPSED_PERCENT_BUSY DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "performance"
+      category: "disk-performance"
+
+  get_memory_pool_performance:
+    source: ibmi-system
+    description: "Get memory pool performance metrics including page fault rates, thread transitions, and tuning settings. Use to identify memory pressure."
+    parameters: []
+    statement: |
+      SELECT POOL_NAME, SYSTEM_POOL_ID, CURRENT_SIZE,
+             MAXIMUM_ACTIVE_THREADS, CURRENT_THREADS,
+             ELAPSED_TIME,
+             ELAPSED_DATABASE_FAULTS, ELAPSED_NON_DATABASE_FAULTS,
+             ELAPSED_TOTAL_FAULTS,
+             ELAPSED_DATABASE_PAGES, ELAPSED_NON_DATABASE_PAGES,
+             ELAPSED_ACTIVE_TO_WAIT, ELAPSED_WAIT_TO_INELIGIBLE,
+             TUNING_PRIORITY, TUNING_MINIMUM_SIZE, TUNING_MAXIMUM_SIZE
+        FROM TABLE(QSYS2.MEMORY_POOL(RESET_STATISTICS => 'YES')) X
+        ORDER BY ELAPSED_TOTAL_FAULTS DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "performance"
+      category: "memory-performance"
+
+toolsets:
+  performance_default:
+    title: "Performance Monitoring Tools"
+    description: "Tools for monitoring IBM i performance including collection services, temporary storage, disk I/O, and memory pool metrics."
+    tools:
+      - get_collection_services_config
+      - get_collection_categories
+      - get_temp_storage_buckets
+      - get_unnamed_temp_storage
+      - get_temp_storage_by_job
+      - get_disk_io_performance
+      - get_memory_pool_performance

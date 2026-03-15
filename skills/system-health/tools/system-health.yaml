@@ -1,0 +1,198 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_system_status:
+    source: ibmi-system
+    description: "Get overall system status including CPU utilization, memory, jobs, storage, and partition details. Provides a comprehensive snapshot of system health."
+    parameters: []
+    statement: |
+      SELECT ELAPSED_TIME, ELAPSED_CPU_USED, ELAPSED_CPU_SHARED,
+             CONFIGURED_CPUS, CURRENT_CPU_CAPACITY,
+             AVERAGE_CPU_UTILIZATION, MINIMUM_CPU_UTILIZATION, MAXIMUM_CPU_UTILIZATION,
+             MAIN_STORAGE_SIZE, SYSTEM_ASP_STORAGE, SYSTEM_ASP_USED,
+             CURRENT_TEMPORARY_STORAGE, MAXIMUM_TEMPORARY_STORAGE_USED,
+             TOTAL_JOBS_IN_SYSTEM, ACTIVE_JOBS_IN_SYSTEM,
+             INTERACTIVE_JOBS_IN_SYSTEM, BATCH_RUNNING,
+             BATCH_WAITING_TO_RUN, BATCH_MESSAGE_WAIT,
+             HOST_NAME, PARTITION_NAME, MACHINE_TYPE, MACHINE_MODEL
+        FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS => 'YES')) X
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "system-status"
+
+  get_system_activity:
+    source: ibmi-system
+    description: "Get current system activity information including real-time CPU utilization rates."
+    parameters: []
+    statement: |
+      SELECT AVERAGE_CPU_RATE, AVERAGE_CPU_UTILIZATION,
+             MINIMUM_CPU_UTILIZATION, MAXIMUM_CPU_UTILIZATION
+        FROM TABLE(QSYS2.SYSTEM_ACTIVITY_INFO())
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "system-activity"
+
+  get_memory_pools:
+    source: ibmi-system
+    description: "Get information about memory pool sizes, thread utilization, paging activity, and tuning parameters."
+    parameters: []
+    statement: |
+      SELECT POOL_NAME, SYSTEM_POOL_ID, CURRENT_SIZE, DEFINED_SIZE, RESERVED_SIZE,
+             MAXIMUM_ACTIVE_THREADS, CURRENT_THREADS, CURRENT_INELIGIBLE_THREADS,
+             STATUS, PAGING_OPTION, DESCRIPTION,
+             ELAPSED_DATABASE_FAULTS, ELAPSED_NON_DATABASE_FAULTS,
+             ELAPSED_DATABASE_PAGES, ELAPSED_NON_DATABASE_PAGES
+        FROM TABLE(QSYS2.MEMORY_POOL(RESET_STATISTICS => 'YES')) X
+        ORDER BY SYSTEM_POOL_ID
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "memory"
+
+  list_disk_units:
+    source: ibmi-system
+    description: "List disk units with capacity, percent used, ASP assignment, disk type, status, and I/O statistics."
+    parameters: []
+    statement: |
+      SELECT UNIT_NUMBER, UNIT_TYPE, ASP_NUMBER,
+             UNIT_STORAGE_CAPACITY, UNIT_SPACE_AVAILABLE,
+             PERCENT_USED, DISK_TYPE, DISK_MODEL,
+             RESOURCE_STATUS, PROTECTION_TYPE,
+             ELAPSED_PERCENT_BUSY
+        FROM QSYS2.SYSDISKSTAT
+        ORDER BY ASP_NUMBER, UNIT_NUMBER
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "disk"
+
+  list_asp_info:
+    source: ibmi-system
+    description: "List Auxiliary Storage Pool (ASP) information including capacity, available space, threshold, and storage status."
+    parameters: []
+    statement: |
+      SELECT ASP_NUMBER, DEVICE_DESCRIPTION_NAME, ASP_STATE, ASP_TYPE,
+             TOTAL_CAPACITY, TOTAL_CAPACITY_AVAILABLE,
+             PROTECTED_CAPACITY, PROTECTED_CAPACITY_AVAILABLE,
+             UNPROTECTED_CAPACITY, UNPROTECTED_CAPACITY_AVAILABLE,
+             STORAGE_THRESHOLD_PERCENTAGE, NUMBER_OF_DISK_UNITS,
+             BALANCE_STATUS
+        FROM QSYS2.ASP_INFO
+        ORDER BY ASP_NUMBER
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "storage"
+
+  get_system_limits:
+    source: ibmi-system
+    description: "Show system limits that are approaching or have exceeded their maximum values. Useful for capacity planning and identifying potential issues before they cause problems."
+    parameters:
+      - name: pct_threshold
+        type: integer
+        description: "Minimum percentage of limit used to include (0-100, e.g., 80 for items at 80%+ of limit)"
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return"
+        default: 50
+    statement: |
+      SELECT LIMIT_CATEGORY, LIMIT_TYPE, SIZING_NAME,
+             CURRENT_VALUE, MAXIMUM_VALUE,
+             CASE WHEN MAXIMUM_VALUE > 0
+               THEN DECIMAL(CURRENT_VALUE * 100.0 / MAXIMUM_VALUE, 7, 2)
+               ELSE 0 END AS PCT_USED,
+             LAST_CHANGE_TIMESTAMP
+        FROM QSYS2.SYSLIMITS
+        WHERE MAXIMUM_VALUE > 0
+          AND (CASE WHEN MAXIMUM_VALUE > 0
+               THEN DECIMAL(CURRENT_VALUE * 100.0 / MAXIMUM_VALUE, 7, 2)
+               ELSE 0 END) >= :pct_threshold
+        ORDER BY PCT_USED DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "system-limits"
+
+  get_tcp_connections:
+    source: ibmi-system
+    description: "List established TCP/IP connections with remote/local addresses, ports, idle time, and byte transfer counts."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of connections to return"
+        default: 50
+    statement: |
+      SELECT CONNECTION_TYPE, REMOTE_ADDRESS, REMOTE_PORT,
+             LOCAL_ADDRESS, LOCAL_PORT, TCP_STATE,
+             IDLE_TIME, BYTES_SENT_REMOTELY, BYTES_RECEIVED_LOCALLY
+        FROM QSYS2.NETSTAT_INFO
+        WHERE TCP_STATE = 'ESTABLISHED'
+        ORDER BY BYTES_SENT_REMOTELY DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "network"
+
+  count_remote_connections:
+    source: ibmi-system
+    description: "Count the number of established remote TCP/IP connections to the system, excluding loopback addresses."
+    parameters: []
+    statement: |
+      SELECT COUNT(REMOTE_ADDRESS) AS REMOTE_CONNECTIONS
+        FROM QSYS2.NETSTAT_INFO
+        WHERE TCP_STATE = 'ESTABLISHED'
+          AND REMOTE_ADDRESS != '::1'
+          AND REMOTE_ADDRESS != '127.0.0.1'
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "system-health"
+      category: "network"
+
+toolsets:
+  system_health_default:
+    title: "System Health Monitoring"
+    description: "Tools for monitoring IBM i system health including CPU, memory, disk, ASPs, system limits, and network status."
+    tools:
+      - get_system_status
+      - get_system_activity
+      - get_memory_pools
+      - list_disk_units
+      - list_asp_info
+      - get_system_limits
+      - get_tcp_connections
+      - count_remote_connections

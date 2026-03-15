@@ -1,0 +1,295 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_users_with_limited_capabilities:
+    source: ibmi-system
+    description: "List user profiles configured with limited capabilities (*YES), showing their status, special authorities, and password settings."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of users to return."
+        default: 100
+    statement: |
+      SELECT AUTHORIZATION_NAME, STATUS, SPECIAL_AUTHORITIES,
+             USER_CLASS_NAME, PASSWORD_EXPIRATION_INTERVAL,
+             PREVIOUS_SIGNON, TEXT_DESCRIPTION
+        FROM QSYS2.USER_INFO_BASIC
+        WHERE LIMIT_CAPABILITIES = '*YES'
+        ORDER BY AUTHORIZATION_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "user-management"
+
+  list_commands_for_limited_users:
+    source: ibmi-system
+    description: "List commands that can be executed by users with limited capabilities. Shows command name, library, and description."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of commands to return."
+        default: 200
+    statement: |
+      SELECT COMMAND_NAME, COMMAND_LIBRARY, TEXT_DESCRIPTION
+        FROM QSYS2.COMMAND_INFO
+        WHERE ALLOW_LIMITED_USER = 'YES'
+        ORDER BY COMMAND_LIBRARY, COMMAND_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "user-management"
+
+  list_users_with_special_authorities:
+    source: ibmi-system
+    description: "List users from the special authority data mart who hold specific special authorities like *ALLOBJ or *SAVSYS. These users can access any Db2 for i data."
+    parameters:
+      - name: authority_filter
+        type: string
+        description: "Filter by special authority (e.g., '*ALLOBJ', '*SAVSYS', '*SECADM') or '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of users to return."
+        default: 200
+    statement: |
+      SELECT AUTHORIZATION_NAME, SPECIAL_AUTHORITY,
+             AUTHORITY_SOURCE, GROUP_PROFILE_NAME,
+             STATUS, TEXT_DESCRIPTION
+        FROM SYSTOOLS.SPECIAL_AUTHORITY_DATA_MART
+        WHERE (:authority_filter = '*ALL' OR SPECIAL_AUTHORITY = :authority_filter)
+        ORDER BY AUTHORIZATION_NAME, SPECIAL_AUTHORITY
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "vulnerability-assessment"
+
+  list_profiles_vulnerable_to_impersonation:
+    source: ibmi-system
+    description: "Identify user profiles vulnerable to impersonation where *PUBLIC authority is not set to *EXCLUDE. Excludes known system exceptions."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of profiles to return."
+        default: 200
+    statement: |
+      SELECT SYSTEM_OBJECT_NAME AS USER_NAME, OBJECT_AUTHORITY, OWNER
+        FROM QSYS2.OBJECT_PRIVILEGES
+        WHERE SYSTEM_OBJECT_SCHEMA = 'QSYS'
+          AND OBJECT_TYPE = '*USRPRF'
+          AND SYSTEM_OBJECT_NAME NOT IN ('QDBSHR', 'QDBSHRDO', 'QDOC', 'QTMPLPD')
+          AND AUTHORIZATION_NAME = '*PUBLIC'
+          AND OBJECT_AUTHORITY <> '*EXCLUDE'
+        ORDER BY SYSTEM_OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "vulnerability-assessment"
+
+  list_public_authority_on_attack_commands:
+    source: ibmi-system
+    description: "Check *PUBLIC authority on dangerous commands (ADDPFTRG, CRTPGM, CRTSRVPGM, SAVOBJ, SAVLIB, CRTDUPOBJ, CPYF) that could enable privilege escalation or data exfiltration."
+    parameters: []
+    statement: |
+      SELECT SYSTEM_OBJECT_NAME, OBJECT_TYPE, OBJECT_AUTHORITY
+        FROM QSYS2.OBJECT_PRIVILEGES
+        WHERE SYSTEM_OBJECT_SCHEMA = 'QSYS'
+          AND OBJECT_TYPE = '*CMD'
+          AND SYSTEM_OBJECT_NAME IN ('ADDPFTRG', 'CRTPGM', 'CRTSRVPGM', 'SAVOBJ', 'SAVLIB', 'CRTDUPOBJ', 'CPYF')
+          AND AUTHORIZATION_NAME = '*PUBLIC'
+        ORDER BY SYSTEM_OBJECT_NAME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "vulnerability-assessment"
+
+  list_db_files_readable_by_public:
+    source: ibmi-system
+    description: "List physical database files where *PUBLIC has read access and the containing library allows *PUBLIC execute. Identifies data exposed to all users."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of files to return."
+        default: 100
+    statement: |
+      WITH libs (lib_name) AS (
+        SELECT SYSTEM_OBJECT_NAME
+          FROM QSYS2.OBJECT_PRIVILEGES
+          WHERE SYSTEM_OBJECT_SCHEMA = 'QSYS'
+            AND OBJECT_TYPE = '*LIB'
+            AND AUTHORIZATION_NAME = '*PUBLIC'
+            AND DATA_EXECUTE = 'YES'
+      )
+      SELECT lib_name, p.SYSTEM_OBJECT_NAME, p.OBJECT_AUTHORITY,
+             p.DATA_READ, p.DATA_ADD, p.DATA_UPDATE, p.DATA_DELETE
+        FROM libs, QSYS2.OBJECT_PRIVILEGES p
+        WHERE p.SYSTEM_OBJECT_SCHEMA = lib_name
+          AND p.OBJECT_TYPE = '*FILE'
+          AND p.AUTHORIZATION_NAME = '*PUBLIC'
+          AND p.DATA_READ = 'YES'
+          AND p.OBJECT_OPERATIONAL = 'YES'
+        ORDER BY lib_name, p.SYSTEM_OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "vulnerability-assessment"
+
+  list_files_exposed_to_trigger_attack:
+    source: ibmi-system
+    description: "Identify database files exposed to trigger attacks where *PUBLIC can read the file and also has alter or management authority, enabling malicious trigger creation."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of files to return."
+        default: 100
+    statement: |
+      WITH libs (lib_name) AS (
+        SELECT SYSTEM_OBJECT_NAME
+          FROM QSYS2.OBJECT_PRIVILEGES
+          WHERE SYSTEM_OBJECT_SCHEMA = 'QSYS'
+            AND OBJECT_TYPE = '*LIB'
+            AND AUTHORIZATION_NAME = '*PUBLIC'
+            AND DATA_EXECUTE = 'YES'
+      )
+      SELECT lib_name, p.SYSTEM_OBJECT_NAME, p.OBJECT_AUTHORITY,
+             p.OBJECT_ALTER, p.OBJECT_MANAGEMENT
+        FROM libs, QSYS2.OBJECT_PRIVILEGES p
+        WHERE p.SYSTEM_OBJECT_SCHEMA = lib_name
+          AND p.OBJECT_TYPE = '*FILE'
+          AND p.AUTHORIZATION_NAME = '*PUBLIC'
+          AND p.DATA_READ = 'YES'
+          AND p.OBJECT_OPERATIONAL = 'YES'
+          AND (p.OBJECT_ALTER = 'YES' OR p.OBJECT_MANAGEMENT = 'YES')
+        ORDER BY lib_name, p.SYSTEM_OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "vulnerability-assessment"
+
+  list_system_libs_allowing_table_creation:
+    source: ibmi-system
+    description: "Identify libraries in the system or product portion of the library list where *PUBLIC can create tables, exposing the system to library list poisoning attacks."
+    parameters: []
+    statement: |
+      SELECT lib.ORDINAL_POSITION, lib.SYSTEM_SCHEMA_NAME, lib.TYPE,
+             priv.OBJECT_AUTHORITY, priv.OBJECT_OPERATIONAL,
+             priv.DATA_READ, priv.DATA_ADD, priv.DATA_EXECUTE
+        FROM QSYS2.LIBRARY_LIST_INFO lib
+        INNER JOIN QSYS2.OBJECT_PRIVILEGES priv
+          ON priv.SYSTEM_OBJECT_SCHEMA = 'QSYS'
+          AND priv.SYSTEM_OBJECT_NAME = lib.SYSTEM_SCHEMA_NAME
+          AND priv.OBJECT_TYPE = '*LIB'
+        WHERE lib.TYPE NOT IN ('USER')
+          AND priv.AUTHORIZATION_NAME = '*PUBLIC'
+          AND priv.OBJECT_OPERATIONAL = 'YES'
+          AND priv.DATA_READ = 'YES'
+          AND priv.DATA_ADD = 'YES'
+          AND priv.DATA_EXECUTE = 'YES'
+        ORDER BY lib.ORDINAL_POSITION
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "vulnerability-assessment"
+
+  list_group_profile_members:
+    source: ibmi-system
+    description: "List members of group profiles. Optionally filter by a specific group name to see which users belong to it."
+    parameters:
+      - name: group_filter
+        type: string
+        description: "Group profile name to filter (e.g., 'QSECOFR') or '*ALL' for all groups."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 200
+    statement: |
+      SELECT GROUP_PROFILE_NAME, USER_PROFILE_NAME, USER_TEXT
+        FROM QSYS2.GROUP_PROFILE_ENTRIES
+        WHERE (:group_filter = '*ALL' OR GROUP_PROFILE_NAME = :group_filter)
+        ORDER BY GROUP_PROFILE_NAME, USER_PROFILE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "user-management"
+
+  list_function_usage:
+    source: ibmi-system
+    description: "List function usage settings that control access to system functions. Shows which users or groups are allowed or denied specific function IDs."
+    parameters:
+      - name: function_filter
+        type: string
+        description: "Function ID prefix to filter (e.g., 'QIBM_DB_') or '*ALL' for all functions."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 200
+    statement: |
+      SELECT FUNCTION_ID, USER_NAME, USAGE, USER_TYPE
+        FROM QSYS2.FUNCTION_USAGE
+        WHERE (:function_filter = '*ALL' OR FUNCTION_ID LIKE :function_filter CONCAT '%')
+        ORDER BY FUNCTION_ID, USER_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "function-access"
+
+toolsets:
+  security_default:
+    title: "Security & Vulnerability Assessment"
+    description: "Read-only tools for assessing IBM i security including user privileges, object authorities, vulnerability detection, and function usage."
+    tools:
+      - list_users_with_limited_capabilities
+      - list_commands_for_limited_users
+      - list_users_with_special_authorities
+      - list_profiles_vulnerable_to_impersonation
+      - list_public_authority_on_attack_commands
+      - list_db_files_readable_by_public
+      - list_files_exposed_to_trigger_attack
+      - list_system_libs_allowing_table_creation
+      - list_group_profile_members
+      - list_function_usage

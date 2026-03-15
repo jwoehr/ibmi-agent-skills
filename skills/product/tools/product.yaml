@@ -1,0 +1,148 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_software_products:
+    source: ibmi-system
+    description: "List installed software products and their status including release level, load state, errors, and compatibility. Useful for identifying products in error state or unsupported releases."
+    parameters:
+      - name: installed_only
+        type: string
+        description: "Filter to only installed products. 'YES' for installed only, '' for all."
+        default: "YES"
+      - name: limit
+        type: integer
+        description: "Maximum number of products to return."
+        default: 100
+    statement: |
+      SELECT PRODUCT_ID, PRODUCT_OPTION, LOAD_ID, LOAD_TYPE,
+             RELEASE_LEVEL, INSTALLED, SYMBOLIC_LOAD_STATE,
+             LOAD_ERROR, SUPPORTED, COMPATIBLE,
+             TEXT_DESCRIPTION, RELEASE_DATE
+        FROM QSYS2.SOFTWARE_PRODUCT_INFO
+        WHERE (:installed_only = '' OR INSTALLED = :installed_only)
+        ORDER BY PRODUCT_ID, PRODUCT_OPTION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "product"
+      category: "software"
+
+  get_software_product_detail:
+    source: ibmi-system
+    description: "Get detailed information about a specific software product by product ID, including all options and load IDs."
+    parameters:
+      - name: product_id
+        type: string
+        description: "Product ID to look up (e.g., '5770SS1', '5770WDS', '5733OPS')."
+        required: true
+    statement: |
+      SELECT PRODUCT_ID, PRODUCT_OPTION, LOAD_ID, LOAD_TYPE,
+             RELEASE_LEVEL, INSTALLED, SYMBOLIC_LOAD_STATE,
+             LOAD_ERROR, SUPPORTED, COMPATIBLE,
+             TEXT_DESCRIPTION, RELEASE_DATE,
+             MINIMUM_TARGET_RELEASE
+        FROM QSYS2.SOFTWARE_PRODUCT_INFO
+        WHERE PRODUCT_ID = :product_id
+        ORDER BY PRODUCT_OPTION, LOAD_ID
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "product"
+      category: "software"
+
+  list_software_errors:
+    source: ibmi-system
+    description: "List software products that have load errors. Useful for identifying broken or incomplete product installations."
+    parameters: []
+    statement: |
+      SELECT PRODUCT_ID, PRODUCT_OPTION, LOAD_ID, LOAD_TYPE,
+             RELEASE_LEVEL, SYMBOLIC_LOAD_STATE, LOAD_ERROR,
+             TEXT_DESCRIPTION
+        FROM QSYS2.SOFTWARE_PRODUCT_INFO
+        WHERE LOAD_ERROR = 'YES'
+        ORDER BY PRODUCT_ID, PRODUCT_OPTION
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "product"
+      category: "software"
+
+  get_license_info:
+    source: ibmi-system
+    description: "Review software license information including usage limits, peak usage, compliance type, and expiration dates. Useful for license compliance auditing and capacity planning."
+    parameters:
+      - name: installed_only
+        type: string
+        description: "Filter to only installed products. 'YES' for installed only, '' for all."
+        default: "YES"
+      - name: limit
+        type: integer
+        description: "Maximum number of licenses to return."
+        default: 100
+    statement: |
+      SELECT PRODUCT_ID, LICENSE_TERM, RELEASE_LEVEL, FEATURE_ID,
+             INSTALLED, PRODUCT_TEXT, USAGE_LIMIT, USAGE_TYPE,
+             USAGE_COUNT, PEAK_USAGE, LAST_PEAK,
+             COMPLIANCE_TYPE, LOG_VIOLATION,
+             LICENSE_EXPIRATION, GRACE_PERIOD, GRACE_END
+        FROM QSYS2.LICENSE_INFO
+        WHERE (:installed_only = '' OR INSTALLED = :installed_only)
+        ORDER BY PRODUCT_ID, FEATURE_ID
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "product"
+      category: "licensing"
+
+  list_unsupported_products:
+    source: ibmi-system
+    description: "List installed software products that are unsupported, incompatible, or have errors. Useful for identifying products needing upgrade or remediation."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of products to return."
+        default: 100
+    statement: |
+      SELECT PRODUCT_ID, PRODUCT_OPTION, LOAD_ID, LOAD_TYPE,
+             RELEASE_LEVEL, SYMBOLIC_LOAD_STATE,
+             LOAD_ERROR, SUPPORTED, COMPATIBLE,
+             TEXT_DESCRIPTION
+        FROM QSYS2.SOFTWARE_PRODUCT_INFO
+        WHERE INSTALLED = 'YES'
+          AND (SUPPORTED = 'NO' OR COMPATIBLE = 'NO' OR LOAD_ERROR = 'YES')
+        ORDER BY PRODUCT_ID, PRODUCT_OPTION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "product"
+      category: "product-health"
+
+toolsets:
+  product_default:
+    title: "Software Product & License Management"
+    description: "Read-only tools for querying installed software products, product health, license compliance, and product option validation."
+    tools:
+      - list_software_products
+      - get_software_product_detail
+      - list_software_errors
+      - get_license_info
+      - list_unsupported_products

@@ -1,0 +1,203 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_system_values:
+    source: ibmi-system
+    description: "List system values with current settings, shipped defaults, and categories. Use to review system configuration like security, date/time, storage, and network settings."
+    parameters:
+      - name: category_filter
+        type: string
+        description: "Category to filter (e.g., 'Security', 'Date and Time', 'Storage', '*SYSCTL') or '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of system values to return."
+        default: 200
+    statement: |
+      SELECT SYSTEM_VALUE_NAME, CURRENT_NUMERIC_VALUE,
+             CURRENT_CHARACTER_VALUE, CATEGORY, CHANGEABLE,
+             SHIPPED_DEFAULT_VALUE, TEXT_DESCRIPTION
+        FROM QSYS2.SYSTEM_VALUE_INFO
+        WHERE (:category_filter = '*ALL' OR CATEGORY = :category_filter)
+        ORDER BY SYSTEM_VALUE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "configuration"
+      category: "system-values"
+
+  get_system_value:
+    source: ibmi-system
+    description: "Get the current setting for a specific system value by name (e.g., QSECURITY, QAUDCTL, QCCSID, QDATFMT)."
+    parameters:
+      - name: sysval_name
+        type: string
+        description: "System value name (e.g., 'QSECURITY', 'QAUDCTL', 'QCCSID')."
+        required: true
+    statement: |
+      SELECT SYSTEM_VALUE_NAME, CURRENT_NUMERIC_VALUE,
+             CURRENT_CHARACTER_VALUE, CATEGORY, CHANGEABLE,
+             SHIPPED_DEFAULT_VALUE, TEXT_DESCRIPTION
+        FROM QSYS2.SYSTEM_VALUE_INFO
+        WHERE SYSTEM_VALUE_NAME = UPPER(:sysval_name)
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "configuration"
+      category: "system-values"
+
+  get_security_system_values:
+    source: ibmi-system
+    description: "List all security-related system values including QSECURITY, QAUDCTL, QAUDLVL, QPWDEXPITV, and others critical for security posture assessment."
+    parameters: []
+    statement: |
+      SELECT SYSTEM_VALUE_NAME, CURRENT_NUMERIC_VALUE,
+             CURRENT_CHARACTER_VALUE, SHIPPED_DEFAULT_VALUE,
+             CHANGEABLE, TEXT_DESCRIPTION
+        FROM QSYS2.SYSTEM_VALUE_INFO
+        WHERE SYSTEM_VALUE_NAME IN (
+          'QSECURITY', 'QAUDCTL', 'QAUDLVL', 'QAUDLVL2',
+          'QPWDEXPITV', 'QPWDLVL', 'QPWDMINLEN', 'QPWDMAXLEN',
+          'QMAXSIGN', 'QMAXSGNACN', 'QLMTSECOFR', 'QRETSVRSEC',
+          'QVFYOBJRST', 'QALWOBJRST', 'QFRCCVNRST', 'QRMTSIGN',
+          'QSHRMEMCTL', 'QUSEADPAUT', 'QCRTAUT', 'QCRTOBJAUD'
+        )
+        ORDER BY SYSTEM_VALUE_NAME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "configuration"
+      category: "security-config"
+
+  get_hardware_resources:
+    source: ibmi-system
+    description: "List hardware resources on the system including processors, storage, communication adapters, and other devices. Shows resource name, status, device type/model, and location."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by resource status (e.g., 'OPERATIONAL', 'FAILED') or '' for all."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of resources to return."
+        default: 100
+    statement: |
+      SELECT RESOURCE_NAME, RESOURCE_CATEGORY, STATUS, EXTENDED_STATUS,
+             DEVICE_TYPE, DEVICE_MODEL, SERIAL_NUMBER,
+             TEXT_DESCRIPTION, LOCATION_CODE
+        FROM QSYS2.HARDWARE_RESOURCE_INFO
+        WHERE (:status_filter = '' OR STATUS = UPPER(:status_filter))
+        ORDER BY RESOURCE_CATEGORY, RESOURCE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "configuration"
+      category: "hardware"
+
+  get_configuration_status:
+    source: ibmi-system
+    description: "List configuration object status including controllers, devices, and lines. Shows name, type, attribute, status, and timestamps. Useful for identifying varied-off or failed devices."
+    parameters:
+      - name: object_type_filter
+        type: string
+        description: "Filter by object type ('*CTLD', '*DEV', '*LIN') or '' for all."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT OBJECT_NAME, OBJECT_TYPE, OBJECT_ATTRIBUTE,
+             STATUS, STATUS_DESCRIPTION, TEXT_DESCRIPTION,
+             CREATE_TIMESTAMP, CHANGE_TIMESTAMP
+        FROM SYSTOOLS.CONFIGURATION_STATUS
+        WHERE (:object_type_filter = '' OR OBJECT_TYPE = UPPER(:object_type_filter))
+        ORDER BY OBJECT_TYPE, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "configuration"
+      category: "configuration-status"
+
+  get_environment_variables:
+    source: ibmi-system
+    description: "List system and job-level environment variables configured on the system. Useful for reviewing PATH, LANG, TZ, and other PASE/ILE environment settings."
+    parameters:
+      - name: name_filter
+        type: string
+        description: "Environment variable name prefix to filter (e.g., 'QIBM_', 'PATH') or '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of variables to return."
+        default: 100
+    statement: |
+      SELECT ENVIRONMENT_VARIABLE_TYPE, ENVIRONMENT_VARIABLE_NAME,
+             ENVIRONMENT_VARIABLE_VALUE, ENVIRONMENT_VARIABLE_CCSID
+        FROM QSYS2.ENVIRONMENT_VARIABLE_INFO
+        WHERE (:name_filter = '*ALL' OR ENVIRONMENT_VARIABLE_NAME LIKE :name_filter CONCAT '%')
+        ORDER BY ENVIRONMENT_VARIABLE_TYPE, ENVIRONMENT_VARIABLE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "configuration"
+      category: "environment"
+
+  get_jvm_info:
+    source: ibmi-system
+    description: "List all active Java Virtual Machines (JVMs) on the system with heap sizes, garbage collection time, thread counts, and bit mode."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of JVMs to return."
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_NAME_SHORT, JOB_USER, START_TIME,
+             JAVA_THREAD_COUNT, TOTAL_GC_TIME, GC_CYCLE_NUMBER,
+             JAVA_HOME, INITIAL_HEAP_SIZE, CURRENT_HEAP_SIZE,
+             IN_USE_HEAP_SIZE, MAX_HEAP_SIZE, BIT_MODE
+        FROM QSYS2.JVM_INFO
+        ORDER BY TOTAL_GC_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "configuration"
+      category: "java"
+
+toolsets:
+  configuration_default:
+    title: "System Configuration"
+    description: "Read-only tools for querying system values, hardware resources, configuration status, service tools, and JVM information."
+    tools:
+      - get_system_values
+      - get_system_value
+      - get_security_system_values
+      - get_hardware_resources
+      - get_configuration_status
+      - get_environment_variables
+      - get_jvm_info

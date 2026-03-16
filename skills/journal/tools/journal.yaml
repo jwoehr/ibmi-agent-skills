@@ -324,6 +324,96 @@ tools:
       domain: "journal"
       category: "audit"
 
+  audit_security_events:
+    source: ibmi-system
+    description: "Query the audit journal for authority failure (AF) events. Shows violations including user, object, violation type, remote address, and program details. Useful for detecting unauthorized access attempts."
+    parameters:
+      - name: hours_ago
+        type: integer
+        description: "Number of hours to look back from now (e.g., 24 for last day, 168 for last week)."
+        default: 24
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT ENTRY_TIMESTAMP, USER_NAME, QUALIFIED_JOB_NAME,
+             VIOLATION_TYPE, VIOLATION_TYPE_DETAIL,
+             OBJECT_LIBRARY, OBJECT_NAME, OBJECT_TYPE,
+             REMOTE_ADDRESS, REMOTE_PORT,
+             PROGRAM_LIBRARY, PROGRAM_NAME,
+             PATH_NAME, USER_PROFILE_NAME
+        FROM TABLE(SYSTOOLS.AUDIT_JOURNAL_AF(
+          STARTING_TIMESTAMP => CURRENT_TIMESTAMP - :hours_ago HOURS))
+        ORDER BY ENTRY_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "audit-security"
+
+  audit_object_changes:
+    source: ibmi-system
+    description: "Query the audit journal for object creation (CO) events. Shows newly created objects including type, library, path, and the user/program that created them. Useful for tracking object lifecycle changes."
+    parameters:
+      - name: hours_ago
+        type: integer
+        description: "Number of hours to look back from now (e.g., 24 for last day, 168 for last week)."
+        default: 24
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT ENTRY_TIMESTAMP, USER_NAME, QUALIFIED_JOB_NAME,
+             ENTRY_TYPE, ENTRY_TYPE_DETAIL,
+             OBJECT_LIBRARY, OBJECT_NAME, OBJECT_TYPE,
+             PROGRAM_LIBRARY, PROGRAM_NAME,
+             PATH_NAME
+        FROM TABLE(SYSTOOLS.AUDIT_JOURNAL_CO(
+          STARTING_TIMESTAMP => CURRENT_TIMESTAMP - :hours_ago HOURS))
+        ORDER BY ENTRY_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "audit-objects"
+
+  audit_system_changes:
+    source: ibmi-system
+    description: "Query the audit journal for system value change (SV) events. Shows which system values were changed, old/new values, and who made the change. Critical for detecting unauthorized configuration changes."
+    parameters:
+      - name: hours_ago
+        type: integer
+        description: "Number of hours to look back from now (e.g., 24 for last day, 168 for last week)."
+        default: 24
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT ENTRY_TIMESTAMP, USER_NAME, QUALIFIED_JOB_NAME,
+             ENTRY_TYPE, ENTRY_TYPE_DETAIL,
+             SYSTEM_VALUE, NEW_VALUE, OLD_VALUE,
+             PROGRAM_LIBRARY, PROGRAM_NAME
+        FROM TABLE(SYSTOOLS.AUDIT_JOURNAL_SV(
+          STARTING_TIMESTAMP => CURRENT_TIMESTAMP - :hours_ago HOURS))
+        ORDER BY ENTRY_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "journal"
+      category: "audit-system"
+
 toolsets:
   journal_default:
     title: "Journal Management"
@@ -339,3 +429,6 @@ toolsets:
       - get_journal_detail
       - list_smapp_access_paths
       - get_audit_journal_data_mart_info
+      - audit_security_events
+      - audit_object_changes
+      - audit_system_changes

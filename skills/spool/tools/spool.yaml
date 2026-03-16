@@ -222,7 +222,7 @@ tools:
 
   get_printer_file_info:
     source: ibmi-system
-    description: "List printer file (*FILE with type P) definitions on the system showing library, name, description, and ASP number."
+    description: "List printer file definitions on the system showing library, name, output queue, page dimensions, copies, and other attributes from the dedicated SYSTOOLS.PRINTER_FILE_INFO view."
     parameters:
       - name: library_filter
         type: string
@@ -233,12 +233,14 @@ tools:
         description: "Maximum number of printer files to return."
         default: 100
     statement: |
-      SELECT SYSTEM_TABLE_SCHEMA AS LIBRARY, SYSTEM_TABLE_NAME AS PRINTER_FILE,
-             TABLE_TEXT AS DESCRIPTION, IASP_NUMBER
-        FROM QSYS2.SYSTABLES
-        WHERE FILE_TYPE = 'P'
-          AND (:library_filter = '*ALL' OR SYSTEM_TABLE_SCHEMA = UPPER(:library_filter))
-        ORDER BY SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME
+      SELECT PRINTER_FILE_LIBRARY, PRINTER_FILE, TEXT_DESCRIPTION,
+             SPOOLED_OUTPUT_QUEUE_LIBRARY, SPOOLED_OUTPUT_QUEUE,
+             COPIES, PAGE_LENGTH, PAGE_WIDTH, LINES_PER_INCH,
+             CHARACTERS_PER_INCH, EXTERNALLY_DESCRIBED, OWNER,
+             CREATE_TIMESTAMP, LAST_USED_TIMESTAMP, SIZE
+        FROM SYSTOOLS.PRINTER_FILE_INFO
+        WHERE (:library_filter = '*ALL' OR PRINTER_FILE_LIBRARY = UPPER(:library_filter))
+        ORDER BY PRINTER_FILE_LIBRARY, PRINTER_FILE
         FETCH FIRST :limit ROWS ONLY
     security:
       readOnly: true

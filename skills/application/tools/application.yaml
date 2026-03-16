@@ -235,6 +235,156 @@ tools:
       domain: "application"
       category: "watches"
 
+  list_bound_srvpgm_info:
+    source: ibmi-system
+    description: "List service programs bound to ILE programs or service programs in a library. Shows binding relationships including service program name, library, signature, and activation settings."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library to filter by (e.g., 'MYLIB'). Required for performance."
+        required: true
+      - name: program_filter
+        type: string
+        description: "Program name to filter by. Leave empty for all programs in the library."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT PROGRAM_LIBRARY, PROGRAM_NAME, OBJECT_TYPE,
+             BOUND_SERVICE_PROGRAM_LIBRARY, BOUND_SERVICE_PROGRAM,
+             BOUND_SERVICE_PROGRAM_SIGNATURE, BOUND_SERVICE_PROGRAM_ACTIVATION
+        FROM QSYS2.BOUND_SRVPGM_INFO
+        WHERE PROGRAM_LIBRARY = UPPER(:library_filter)
+          AND (:program_filter = '' OR PROGRAM_NAME = UPPER(:program_filter))
+        ORDER BY PROGRAM_NAME, BOUND_SERVICE_PROGRAM
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "programs"
+
+  list_exit_point_info:
+    source: ibmi-system
+    description: "List registered exit points on the system. Shows exit point name, format, registration status, number of exit programs, and configuration. Complements list_exit_programs which shows the actual programs registered at exit points."
+    parameters:
+      - name: exit_point_filter
+        type: string
+        description: "Filter by exit point name pattern (e.g., 'QIBM_QSY%'). Leave empty for all exit points."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of exit points to return."
+        default: 100
+    statement: |
+      SELECT EXIT_POINT_NAME, EXIT_POINT_FORMAT, REGISTERED,
+             ALLOW_DEREGISTRATION, ALLOW_CHANGE, EXIT_PROGRAMS,
+             MAXIMUM_EXIT_PROGRAMS, TEXT_DESCRIPTION
+        FROM QSYS2.EXIT_POINT_INFO
+        WHERE :exit_point_filter = '' OR EXIT_POINT_NAME LIKE UPPER(:exit_point_filter)
+        ORDER BY EXIT_POINT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "exit-programs"
+
+  list_db_transactions:
+    source: ibmi-system
+    description: "List active database transactions (commitment control) showing job, commitment definition, state, pending changes, lock settings, and commit/rollback counts."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of transactions to return."
+        default: 100
+    statement: |
+      SELECT COMMITMENT_DEFINITION, JOB_NAME, USER_NAME,
+             LOGICAL_UNIT_OF_WORK_STATE, STATE_TIMESTAMP,
+             LOCAL_CHANGES_PENDING, REMOTE_CHANGES_PENDING,
+             DEFAULT_LOCK_LEVEL, LOCK_WAIT_TIME,
+             NUMBER_COMMITS, NUMBER_ROLLBACKS,
+             ACTIVATION_GROUP, JOB_ACTIVE
+        FROM QSYS2.DB_TRANSACTION_INFO
+        ORDER BY STATE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "transactions"
+
+  list_data_queue_entries:
+    source: ibmi-system
+    description: "List entries in a specific data queue. Shows message data, key data, enqueue timestamps, and sender information. The data queue must exist in the specified library."
+    parameters:
+      - name: queue_name
+        type: string
+        description: "Name of the data queue."
+        required: true
+      - name: queue_library
+        type: string
+        description: "Library containing the data queue."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 50
+    statement: |
+      SELECT ORDINAL_POSITION, DATA_QUEUE_LIBRARY, DATA_QUEUE,
+             MESSAGE_DATA_UTF8, KEY_DATA,
+             MESSAGE_ENQUEUE_TIMESTAMP,
+             SENDER_JOB_NAME, SENDER_CURRENT_USER
+        FROM TABLE(QSYS2.DATA_QUEUE_ENTRIES(
+          DATA_QUEUE => :queue_name,
+          DATA_QUEUE_LIBRARY => :queue_library))
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "data-queues"
+
+  get_stack_info:
+    source: ibmi-system
+    description: "Get the call stack of a job. Shows program names, modules, procedures, activation groups, and statement identifiers. Use '*' for the current job."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name (e.g., '123456/QUSER/MYJOB') or '*' for current job."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of stack entries to return."
+        default: 100
+    statement: |
+      SELECT ORDINAL_POSITION, ENTRY_TYPE, PROGRAM_NAME,
+             PROGRAM_LIBRARY_NAME, MODULE_NAME, MODULE_LIBRARY_NAME,
+             PROCEDURE_NAME, ACTIVATION_GROUP_NUMBER,
+             ACTIVATION_GROUP_NAME, STATEMENT_IDENTIFIERS,
+             REQUEST_LEVEL, CONTROL_BOUNDARY
+        FROM TABLE(QSYS2.STACK_INFO(:job_name))
+        WHERE ENTRY_TYPE NOT IN ('LIC')
+        ORDER BY ORDINAL_POSITION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "application"
+      category: "diagnostics"
+
 toolsets:
   application_default:
     title: "Application Services"
@@ -248,3 +398,8 @@ toolsets:
       - list_programs
       - list_exit_programs
       - list_watches
+      - list_bound_srvpgm_info
+      - list_exit_point_info
+      - list_db_transactions
+      - list_data_queue_entries
+      - get_stack_info

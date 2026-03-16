@@ -278,6 +278,222 @@ tools:
       domain: "security"
       category: "function-access"
 
+  list_authorization_lists:
+    source: ibmi-system
+    description: "List authorization lists and their secured objects. Shows the authorization list name, secured object schema/name/type, owner, and description. Use this to understand which objects are protected by authorization lists."
+    parameters:
+      - name: auth_list_filter
+        type: string
+        description: "Authorization list name to filter (e.g., 'MYAUTL') or '*ALL' for all authorization lists."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 200
+    statement: |
+      SELECT AUTHORIZATION_LIST, SYSTEM_OBJECT_SCHEMA, SYSTEM_OBJECT_NAME,
+             SYSTEM_OBJECT_TYPE, OBJECT_ATTRIBUTE, OBJECT_OWNER,
+             TEXT_DESCRIPTION
+        FROM QSYS2.AUTHORIZATION_LIST_INFO
+        WHERE (:auth_list_filter = '*ALL' OR AUTHORIZATION_LIST = UPPER(:auth_list_filter))
+        ORDER BY AUTHORIZATION_LIST, SYSTEM_OBJECT_SCHEMA, SYSTEM_OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "authorization-lists"
+
+  list_authorization_list_users:
+    source: ibmi-system
+    description: "List users and their authorities on authorization lists. Shows each user's object authority, data permissions (read/add/update/delete/execute), and management rights. Use this to audit who has access through authorization lists."
+    parameters:
+      - name: auth_list_filter
+        type: string
+        description: "Authorization list name to filter (e.g., 'MYAUTL') or '*ALL' for all authorization lists."
+        default: "*ALL"
+      - name: user_filter
+        type: string
+        description: "User profile name to filter or '*ALL' for all users."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 200
+    statement: |
+      SELECT AUTHORIZATION_LIST, AUTHORIZATION_NAME, OBJECT_AUTHORITY,
+             AUTHORIZATION_LIST_MANAGEMENT, OWNER,
+             OBJECT_OPERATIONAL, OBJECT_MANAGEMENT, OBJECT_EXISTENCE,
+             DATA_READ, DATA_ADD, DATA_UPDATE, DATA_DELETE, DATA_EXECUTE
+        FROM QSYS2.AUTHORIZATION_LIST_USER_INFO
+        WHERE (:auth_list_filter = '*ALL' OR AUTHORIZATION_LIST = UPPER(:auth_list_filter))
+          AND (:user_filter = '*ALL' OR AUTHORIZATION_NAME = UPPER(:user_filter))
+        ORDER BY AUTHORIZATION_LIST, AUTHORIZATION_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "authorization-lists"
+
+  list_user_profiles:
+    source: ibmi-system
+    description: "List user profiles with comprehensive details including status, special authorities, class, password settings, group membership, storage usage, and sign-on history. Optionally filter by status or user class."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by user status ('*ENABLED', '*DISABLED') or '*ALL' for all."
+        default: "*ALL"
+      - name: user_class_filter
+        type: string
+        description: "Filter by user class ('*SECOFR', '*SECADM', '*PGMR', '*SYSOPR', '*USER') or '*ALL'."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of user profiles to return."
+        default: 100
+    statement: |
+      SELECT AUTHORIZATION_NAME, STATUS, USER_CLASS_NAME,
+             SPECIAL_AUTHORITIES, GROUP_PROFILE_NAME,
+             SUPPLEMENTAL_GROUP_COUNT, OWNER, GROUP_AUTHORITY,
+             PASSWORD_CHANGE_DATE, DAYS_UNTIL_PASSWORD_EXPIRES,
+             NO_PASSWORD_INDICATOR, PREVIOUS_SIGNON,
+             SIGN_ON_ATTEMPTS_NOT_VALID, STORAGE_USED,
+             MAXIMUM_ALLOWED_STORAGE, LIMIT_CAPABILITIES,
+             OBJECT_AUDITING_VALUE, TEXT_DESCRIPTION,
+             CREATION_TIMESTAMP, LAST_USED_TIMESTAMP
+        FROM QSYS2.USER_INFO
+        WHERE (:status_filter = '*ALL' OR STATUS = :status_filter)
+          AND (:user_class_filter = '*ALL' OR USER_CLASS_NAME = :user_class_filter)
+        ORDER BY AUTHORIZATION_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "user-management"
+
+  get_security_info:
+    source: ibmi-system
+    description: "Retrieve system-wide security posture including security level, password level, audit journal status, password policies, and object authority collection settings."
+    parameters: []
+    statement: |
+      SELECT SECURITY_LEVEL, PENDING_SECURITY_LEVEL,
+             PASSWORD_LEVEL, PENDING_PASSWORD_LEVEL,
+             AUDIT_JOURNAL_EXISTS, PASSWORD_CHANGE_BLOCK,
+             PASSWORD_EXPIRATION_INTERVAL, PASSWORD_EXPIRATION_WARNING,
+             PASSWORD_MAXIMUM_LENGTH, PASSWORD_MINIMUM_LENGTH,
+             PASSWORD_REQUIRE_DIGIT, PASSWORD_DUPLICATION,
+             PASSWORD_RULES, CREATE_PUBLIC_AUTHORITY,
+             CREATE_OBJECT_AUDITING, MAXIMUM_SIGNON_ATTEMPTS,
+             MAXIMUM_SIGNON_ACTION, VERIFY_OBJECT_RESTORE,
+             ALLOW_OBJECT_RESTORE, USE_ADOPTED_AUTHORITY,
+             ALLOW_USER_DOMAIN, LIMIT_SECOFR_ACCESS,
+             INACTIVE_JOB_TIMEOUT, AUDITING_CONTROL,
+             AUDITING_LEVEL, AUDITING_LEVEL_EXTENSION,
+             OBJECT_AUTHORITY_COLLECTION_ACTIVE
+        FROM QSYS2.SECURITY_INFO
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "security-posture"
+
+  list_authority_collection:
+    source: ibmi-system
+    description: "List authority collection data showing authority checks performed on objects. Includes user, object, authority source, required vs current authority, and whether the check succeeded. Useful for analyzing actual authority usage patterns."
+    parameters:
+      - name: user_filter
+        type: string
+        description: "Filter by authorization name or '*ALL' for all users."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT AUTHORIZATION_NAME, CHECK_TIMESTAMP,
+             SYSTEM_OBJECT_SCHEMA, SYSTEM_OBJECT_NAME, SYSTEM_OBJECT_TYPE,
+             AUTHORITY_CHECK_SUCCESSFUL, REQUIRED_AUTHORITY,
+             CURRENT_AUTHORITY, AUTHORITY_SOURCE,
+             OBJECT_NAME, OBJECT_SCHEMA, OBJECT_TYPE,
+             JOB_NAME, PATH_NAME
+        FROM QSYS2.AUTHORITY_COLLECTION
+        WHERE (:user_filter = '*ALL' OR AUTHORIZATION_NAME = UPPER(:user_filter))
+        ORDER BY CHECK_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "authority-analysis"
+
+  list_certificates:
+    source: ibmi-system
+    description: "List digital certificates from a certificate store. Requires the certificate store password. Use to inventory certificates on the system."
+    parameters:
+      - name: store_password
+        type: string
+        description: "Password for the certificate store."
+        required: true
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.CERTIFICATE_INFO(
+          CERTIFICATE_STORE_PASSWORD => :store_password))
+        FETCH FIRST 100 ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "certificates"
+
+  list_object_ownership:
+    source: ibmi-system
+    description: "List objects owned by a specific user profile. Shows object type, library, name, authority settings, and description. Useful for auditing what a user owns."
+    parameters:
+      - name: user_name
+        type: string
+        description: "User profile name to list owned objects for."
+        required: true
+      - name: object_type_filter
+        type: string
+        description: "Filter by object type (e.g., '*FILE', '*PGM', '*LIB'). Use '*ALL' for all types."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT AUTHORIZATION_NAME, OBJECT_TYPE, OBJECT_LIBRARY,
+             OBJECT_NAME, PATH_NAME, OBJECT_ATTRIBUTE,
+             OBJECT_AUTHORITY, DATA_READ, DATA_ADD,
+             DATA_UPDATE, DATA_DELETE, DATA_EXECUTE,
+             TEXT_DESCRIPTION
+        FROM QSYS2.OBJECT_OWNERSHIP
+        WHERE AUTHORIZATION_NAME = UPPER(:user_name)
+          AND (:object_type_filter = '*ALL' OR OBJECT_TYPE = UPPER(:object_type_filter))
+        ORDER BY OBJECT_TYPE, OBJECT_LIBRARY, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "security"
+      category: "object-ownership"
+
 toolsets:
   security_default:
     title: "Security & Vulnerability Assessment"
@@ -293,3 +509,10 @@ toolsets:
       - list_system_libs_allowing_table_creation
       - list_group_profile_members
       - list_function_usage
+      - list_authorization_lists
+      - list_authorization_list_users
+      - list_user_profiles
+      - get_security_info
+      - list_authority_collection
+      - list_certificates
+      - list_object_ownership

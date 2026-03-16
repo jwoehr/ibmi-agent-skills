@@ -110,7 +110,7 @@ SELECT SEVERITY, COUNT(*) AS MESSAGE_COUNT
 
 ## Pre-built Tools
 
-The `tools/message-handling.yaml` file provides 7 ready-to-use tools:
+The `tools/message-handling.yaml` file provides 8 ready-to-use tools:
 
 | Tool | Description |
 |------|-------------|
@@ -121,6 +121,7 @@ The `tools/message-handling.yaml` file provides 7 ready-to-use tools:
 | `get_reply_list` | System reply list entries for automatic responses |
 | `search_message_file` | Look up message definitions by ID or prefix |
 | `count_messages_by_severity` | Message count distribution by severity level |
+| `get_joblog_info` | Job log messages for a specific job or the current job |
 
 ```bash
 ibmi tool <tool_name> --tools tools/          # Execute

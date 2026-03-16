@@ -83,7 +83,7 @@ ibmi tool list_group_profile_members --tools tools/ --group-filter QSECOFR
 
 ## Pre-built Tools
 
-The `tools/security.yaml` file provides 10 ready-to-use tools:
+The `tools/security.yaml` file provides 12 ready-to-use tools:
 
 | Tool | Description |
 |------|-------------|
@@ -97,6 +97,8 @@ The `tools/security.yaml` file provides 10 ready-to-use tools:
 | `list_system_libs_allowing_table_creation` | System libraries open to table creation |
 | `list_group_profile_members` | Group profile membership entries |
 | `list_function_usage` | Function-level access control settings |
+| `list_authorization_lists` | Authorization lists and their secured objects |
+| `list_authorization_list_users` | Users and their authorities on authorization lists |
 
 ```bash
 ibmi tool <tool_name> --tools tools/          # Execute

@@ -244,6 +244,78 @@ tools:
       domain: "ptf"
       category: "ptf-currency"
 
+  check_firmware_currency:
+    source: ibmi-system
+    description: "Check firmware version from system hardware resources. Shows machine type, model, serial number, and firmware level. Use this as a lightweight firmware check when SYSTOOLS.FIRMWARE_CURRENCY is unavailable."
+    parameters: []
+    statement: |
+      SELECT RESOURCE_NAME, DEVICE_TYPE, DEVICE_MODEL,
+             SERIAL_NUMBER, SYSTEM_PROCESSOR_FEATURE_CODE,
+             PROCESSOR_FEATURE_CODE, INTERACTIVE_FEATURE_CODE,
+             TEXT_DESCRIPTION
+        FROM QSYS2.HARDWARE_RESOURCE_INFO
+        WHERE RESOURCE_CATEGORY = 'PROCESSOR'
+        FETCH FIRST 10 ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ptf"
+      category: "firmware"
+
+  get_ptf_group_member_details:
+    source: ibmi-system
+    description: "Get detailed member-level information for a PTF group from SYSTOOLS.GROUP_PTF_DETAILS. Shows individual PTFs within the group including product, status, loaded status, APAR name, and supersede info."
+    parameters:
+      - name: ptf_group_name
+        type: string
+        description: "PTF group name (e.g., 'SF99730')."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of PTF detail rows to return."
+        default: 100
+    statement: |
+      SELECT PTF_GROUP_NAME, PTF_GROUP_DESCRIPTION,
+             PTF_IDENTIFIER, APAR_NAME, PTF_PRODUCT_ID,
+             PTF_PRODUCT_DESCRIPTION, PTF_STATUS,
+             PTF_LOADED_STATUS, PTF_SAVE_FILE,
+             PTF_IPL_ACTION, PTF_ACTION_PENDING,
+             PTF_SUPERSEDED_BY_PTF, PTF_CREATION_TIMESTAMP,
+             PTF_INCLUDED_IN_GROUP_DATE
+        FROM SYSTOOLS.GROUP_PTF_DETAILS
+        WHERE PTF_GROUP_NAME = UPPER(:ptf_group_name)
+        ORDER BY PTF_IDENTIFIER
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ptf"
+      category: "ptf-groups"
+
+  get_ptf_cover_letter:
+    source: ibmi-system
+    description: "Retrieve the cover letter text for a specific PTF. Shows line-by-line PTF documentation including problem description, correction details, and special instructions."
+    parameters:
+      - name: ptf_id
+        type: string
+        description: "PTF identifier (e.g., 'SI76581', 'MF71475')."
+        required: true
+    statement: |
+      SELECT LINE_NUMBER, PTF_COVER_LETTER_LINE
+        FROM TABLE(SYSTOOLS.PTF_COVER_LETTER(:ptf_id))
+        ORDER BY LINE_NUMBER
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ptf"
+      category: "ptf-detail"
+
 toolsets:
   ptf_default:
     title: "PTF Management Tools"
@@ -257,3 +329,6 @@ toolsets:
       - find_critical_ptf_updates
       - list_individual_ptfs
       - check_defective_ptfs
+      - check_firmware_currency
+      - get_ptf_group_member_details
+      - get_ptf_cover_letter

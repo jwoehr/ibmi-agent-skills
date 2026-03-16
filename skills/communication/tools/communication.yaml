@@ -188,6 +188,71 @@ tools:
       domain: "communication"
       category: "time-protocol"
 
+  list_active_db_connections:
+    source: ibmi-system
+    description: "List active database connections to the system or from the system to remote databases. Shows connection details including server name, job, user, and connection type."
+    parameters:
+      - name: server_filter
+        type: string
+        description: "Server name filter or '*ALL' for all connections."
+        default: "*ALL"
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.ACTIVE_DB_CONNECTIONS(:server_filter))
+        FETCH FIRST 100 ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "database-connections"
+
+  get_rdb_entry_info:
+    source: ibmi-system
+    description: "List relational database directory entries showing remote database names, locations, connection types, and authentication settings."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of RDB entries to return."
+        default: 100
+    statement: |
+      SELECT RDB_NAME, RDB_ALIAS, REMOTE_LOCATION_TYPE,
+             REMOTE_LOCATION, TEXT_DESCRIPTION,
+             REMOTE_PORT_OR_SERVICE, PREFERRED_AUTHENTICATION,
+             ENCRYPTION_ALGORITHM, SECURE_CONNECTION,
+             LOCAL_LOCATION, REMOTE_NETWORK_ID
+        FROM QSYS2.RDB_ENTRY_INFO
+        ORDER BY RDB_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "rdb-directory"
+
+  dns_lookup:
+    source: ibmi-system
+    description: "Perform a DNS lookup for a hostname. Returns IP addresses, address type (IPv4/IPv6), and whether the result is authoritative."
+    parameters:
+      - name: hostname
+        type: string
+        description: "Hostname to resolve (e.g., 'google.com', 'myserver.example.com')."
+        required: true
+    statement: |
+      SELECT ADDRESS_SPACE_TYPE, IP_ADDRESS,
+             AUTHORITATIVE, AUTHENTICATED_DATA
+        FROM TABLE(QSYS2.DNS_LOOKUP(:hostname))
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "dns"
+
 toolsets:
   communication_default:
     title: "Communication & Network Services"
@@ -201,3 +266,6 @@ toolsets:
       - get_tcpip_info
       - get_network_attribute_info
       - get_time_protocol_info
+      - list_active_db_connections
+      - get_rdb_entry_info
+      - dns_lookup

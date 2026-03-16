@@ -241,6 +241,33 @@ tools:
       domain: "database-performance"
       category: "mti-analysis"
 
+  get_active_queries:
+    source: ibmi-system
+    description: "List currently active SQL queries with execution details including job name, user, query type, runtime, row counts, temporary storage, and database reads. Useful for identifying expensive or long-running queries."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of active queries to return."
+        default: 50
+    statement: |
+      SELECT QUALIFIED_JOB_NAME, JOB_NAME, USER_NAME,
+             QUERY_TYPE, LIBRARY_NAME, FILE_NAME,
+             FULL_OPEN_TIMESTAMP, CURRENT_RUNTIME,
+             CURRENT_ROW_COUNT, CURRENT_TEMPORARY_STORAGE,
+             CURRENT_DATABASE_READS, CURRENT_PAGE_FAULTS,
+             MTI_COUNT, PSEUDO_CLOSED,
+             AVERAGE_RUNTIME, AVERAGE_ROW_COUNT
+        FROM TABLE(QSYS2.ACTIVE_QUERY_INFO())
+        ORDER BY CURRENT_RUNTIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "active-queries"
+
 toolsets:
   database_performance_default:
     title: "Database Performance Tools"
@@ -253,3 +280,4 @@ toolsets:
       - get_query_supervisor_thresholds
       - get_mqt_statistics
       - get_tables_with_high_mti
+      - get_active_queries

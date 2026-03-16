@@ -215,6 +215,40 @@ tools:
       domain: "message-handling"
       category: "message-queues"
 
+  get_joblog_info:
+    source: ibmi-system
+    description: "Retrieve job log messages for a specific job or the current job. Shows message ID, type, severity, text, sending program, and timestamps. Use '*' for the current job's log."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'NUMBER/USER/NAME' (e.g., '012345/QUSER/MYJOB'). Use '*' for the current job."
+        default: "*"
+      - name: severity_min
+        type: integer
+        description: "Minimum message severity to include (0-99). Use 0 for all messages."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of job log messages to return."
+        default: 100
+    statement: |
+      SELECT ORDINAL_POSITION, MESSAGE_ID, MESSAGE_TYPE, MESSAGE_SUBTYPE,
+             SEVERITY, MESSAGE_TIMESTAMP, FROM_LIBRARY, FROM_PROGRAM,
+             FROM_MODULE, FROM_PROCEDURE, FROM_USER,
+             TO_PROGRAM, TO_MODULE, TO_PROCEDURE,
+             MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT
+        FROM TABLE(QSYS2.JOBLOG_INFO(:job_name))
+        WHERE SEVERITY >= :severity_min
+        ORDER BY ORDINAL_POSITION DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "job-log"
+
 toolsets:
   message_handling_default:
     title: "Message Handling Tools"
@@ -227,3 +261,4 @@ toolsets:
       - get_reply_list
       - search_message_file
       - count_messages_by_severity
+      - get_joblog_info

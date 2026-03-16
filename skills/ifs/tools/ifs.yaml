@@ -223,6 +223,64 @@ tools:
       domain: "ifs"
       category: "shares"
 
+  compare_ifs_objects:
+    source: ibmi-system
+    description: "Compare two IFS stream files and return their differences. Both paths must point to stream files (*STMF), not directories. Can be slow for large files."
+    parameters:
+      - name: path1
+        type: string
+        description: "Full IFS path to the first file (e.g., '/home/user/file1.txt')."
+        required: true
+      - name: path2
+        type: string
+        description: "Full IFS path to the second file (e.g., '/home/user/file2.txt')."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of difference lines to return."
+        default: 200
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.COMPARE_IFS(:path1, :path2))
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "compare"
+
+  list_ifs_job_info:
+    source: ibmi-system
+    description: "List IFS objects that a specific job has open. Shows file paths, lock counts, share modes, and reference counts. Use '*' for the current job."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name (e.g., '123456/QUSER/MYJOB') or '*' for the current job."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of IFS objects to return."
+        default: 100
+    statement: |
+      SELECT PATH_NAME, FILE_SYSTEM_TYPE,
+             REFERENCE_COUNT, CURRENT_DIRECTORY, ROOT_DIRECTORY,
+             RO_SHARE_R_COUNT, RO_SHARE_W_COUNT, RO_SHARE_RW_COUNT,
+             WO_SHARE_R_COUNT, WO_SHARE_W_COUNT, WO_SHARE_RW_COUNT,
+             RW_SHARE_R_COUNT, RW_SHARE_W_COUNT, RW_SHARE_RW_COUNT,
+             ATTRIBUTE_LOCK, SAVE_LOCK, LINK_CHANGES_LOCK
+        FROM TABLE(QSYS2.IFS_JOB_INFO(:job_name))
+        ORDER BY PATH_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "job-files"
+
 toolsets:
   ifs_default:
     title: "IFS Operations"
@@ -236,3 +294,5 @@ toolsets:
       - read_ifs_file
       - list_ifs_object_locks
       - list_server_shares
+      - compare_ifs_objects
+      - list_ifs_job_info

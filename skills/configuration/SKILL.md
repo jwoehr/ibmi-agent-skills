@@ -12,8 +12,8 @@ Query system configuration including system values, hardware resources, device s
 The `ibmi` CLI is the primary tool for executing configuration queries:
 
 ```bash
-ibmi tools --tools tools/ --toolset configuration_default
-ibmi tool get_system_values --tools tools/
+ibmi tools --tools skills/configuration/tools/ --toolset configuration_default
+ibmi tool get_system_values --tools skills/configuration/tools/
 ibmi sql "SELECT * FROM QSYS2.SYSTEM_VALUE_INFO WHERE SYSTEM_VALUE_NAME = 'QSECURITY'"
 ```
 
@@ -68,22 +68,22 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Security system values
 ```bash
-ibmi tool get_security_system_values --tools tools/
+ibmi tool get_security_system_values --tools skills/configuration/tools/
 ```
 
 ### Look up a specific system value
 ```bash
-ibmi tool get_system_value --tools tools/ --sysval-name QSECURITY
+ibmi tool get_system_value --tools skills/configuration/tools/ --sysval-name QSECURITY
 ```
 
 ### Hardware resources
 ```bash
-ibmi tool get_hardware_resources --tools tools/
+ibmi tool get_hardware_resources --tools skills/configuration/tools/
 ```
 
 ### Configuration object status
 ```bash
-ibmi tool get_configuration_status --tools tools/
+ibmi tool get_configuration_status --tools skills/configuration/tools/
 ```
 
 ## Pre-built Tools
@@ -101,9 +101,9 @@ The `tools/configuration.yaml` file provides 7 ready-to-use tools:
 | `get_jvm_info` | Active JVM heap, GC, and thread information |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/configuration/tools/          # Execute
+ibmi tool <tool_name> --tools skills/configuration/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/configuration/tools/     # View details
 ```
 
 ## Reference Documentation

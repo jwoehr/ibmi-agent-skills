@@ -13,13 +13,13 @@ The `ibmi` CLI is the primary tool for executing database performance queries:
 
 ```bash
 # List all database performance tools
-ibmi tools --tools tools/ --toolset database_performance_default
+ibmi tools --tools skills/database-performance/tools/ --toolset database_performance_default
 
 # Run a specific tool
-ibmi tool get_index_statistics --tools tools/
+ibmi tool get_index_statistics --tools skills/database-performance/tools/
 
 # Run with parameters
-ibmi tool get_mti_info --tools tools/ schema_name=MYLIB table_name=ORDERS
+ibmi tool get_mti_info --tools skills/database-performance/tools/ schema_name=MYLIB table_name=ORDERS
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.SYSINDEXSTAT WHERE TABLE_SCHEMA = 'MYLIB' ORDER BY QUERY_USE_COUNT DESC"
@@ -86,27 +86,27 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### View index statistics for a library
 ```bash
-ibmi tool get_index_statistics --tools tools/ schema_filter=MYLIB
+ibmi tool get_index_statistics --tools skills/database-performance/tools/ schema_filter=MYLIB
 ```
 
 ### Find unused indexes
 ```bash
-ibmi tool get_unused_indexes --tools tools/ schema_filter=MYLIB unused_days=90
+ibmi tool get_unused_indexes --tools skills/database-performance/tools/ schema_filter=MYLIB unused_days=90
 ```
 
 ### Check MTIs on a specific table
 ```bash
-ibmi tool get_mti_info --tools tools/ schema_name=MYLIB table_name=ORDERS
+ibmi tool get_mti_info --tools skills/database-performance/tools/ schema_name=MYLIB table_name=ORDERS
 ```
 
 ### Find tables with high MTI overhead
 ```bash
-ibmi tool get_tables_with_high_mti --tools tools/ schema_filter=MYLIB min_mti_size=1048576
+ibmi tool get_tables_with_high_mti --tools skills/database-performance/tools/ schema_filter=MYLIB min_mti_size=1048576
 ```
 
 ### Review query supervisor thresholds
 ```bash
-ibmi tool get_query_supervisor_thresholds --tools tools/
+ibmi tool get_query_supervisor_thresholds --tools skills/database-performance/tools/
 ```
 
 ## Pre-built Tools
@@ -124,9 +124,9 @@ The `tools/database-performance.yaml` file provides 7 ready-to-use tools:
 | `get_tables_with_high_mti` | Tables with largest MTI overhead |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/database-performance/tools/          # Execute
+ibmi tool <tool_name> --tools skills/database-performance/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/database-performance/tools/     # View details
 ```
 
 ## Reference Documentation

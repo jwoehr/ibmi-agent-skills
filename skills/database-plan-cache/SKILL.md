@@ -13,13 +13,13 @@ The `ibmi` CLI is the primary tool for executing plan cache queries:
 
 ```bash
 # List all plan cache tools
-ibmi tools --tools tools/ --toolset database_plan_cache_default
+ibmi tools --tools skills/database-plan-cache/tools/ --toolset database_plan_cache_default
 
 # Run a specific tool
-ibmi tool list_plan_cache_services --tools tools/
+ibmi tool list_plan_cache_services --tools skills/database-plan-cache/tools/
 
 # Run with parameters
-ibmi tool get_plan_cache_procedure_details --tools tools/ procedure_name=DUMP_PLAN_CACHE
+ibmi tool get_plan_cache_procedure_details --tools skills/database-plan-cache/tools/ procedure_name=DUMP_PLAN_CACHE
 
 # Ad-hoc SQL for plan cache analysis
 ibmi sql "SELECT * FROM QSYS2.SERVICES_INFO WHERE SERVICE_CATEGORY = 'DATABASE-PLAN CACHE'"
@@ -87,22 +87,22 @@ The `ibmi-mcp-server` also provides `execute_sql` for MCP-connected agents. Plan
 
 ### List all plan cache services
 ```bash
-ibmi tool list_plan_cache_services --tools tools/
+ibmi tool list_plan_cache_services --tools skills/database-plan-cache/tools/
 ```
 
 ### Get procedure parameters
 ```bash
-ibmi tool get_plan_cache_procedure_details --tools tools/ procedure_name=DUMP_PLAN_CACHE_TOPN
+ibmi tool get_plan_cache_procedure_details --tools skills/database-plan-cache/tools/ procedure_name=DUMP_PLAN_CACHE_TOPN
 ```
 
 ### Find existing snapshots
 ```bash
-ibmi tool list_plan_cache_snapshots --tools tools/
+ibmi tool list_plan_cache_snapshots --tools skills/database-plan-cache/tools/
 ```
 
 ### Get management SQL syntax
 ```bash
-ibmi tool get_plan_cache_management_sql --tools tools/
+ibmi tool get_plan_cache_management_sql --tools skills/database-plan-cache/tools/
 ```
 
 ### Dump top 50 queries (via ad-hoc SQL)
@@ -137,9 +137,9 @@ The `tools/database-plan-cache.yaml` file provides 7 ready-to-use tools:
 | `get_plan_cache_management_sql` | Ready-to-use CALL statements for all operations |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/database-plan-cache/tools/          # Execute
+ibmi tool <tool_name> --tools skills/database-plan-cache/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/database-plan-cache/tools/     # View details
 ```
 
 ## Reference Documentation

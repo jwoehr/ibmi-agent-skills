@@ -13,10 +13,10 @@ The `ibmi` CLI is the primary tool for executing performance queries:
 
 ```bash
 # List all performance tools
-ibmi tools --tools tools/ --toolset performance_default
+ibmi tools --tools skills/performance/tools/ --toolset performance_default
 
 # Run a specific tool
-ibmi tool get_collection_services_config --tools tools/
+ibmi tool get_collection_services_config --tools skills/performance/tools/
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.COLLECTION_SERVICES_INFO"
@@ -76,17 +76,17 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Check collection services configuration
 ```bash
-ibmi tool get_collection_services_config --tools tools/
+ibmi tool get_collection_services_config --tools skills/performance/tools/
 ```
 
 ### View collection categories
 ```bash
-ibmi tool get_collection_categories --tools tools/
+ibmi tool get_collection_categories --tools skills/performance/tools/
 ```
 
 ### Top temp storage consumers by job
 ```bash
-ibmi tool get_temp_storage_by_job --tools tools/
+ibmi tool get_temp_storage_by_job --tools skills/performance/tools/
 ```
 
 ### Disk I/O performance
@@ -123,9 +123,9 @@ The `tools/performance.yaml` file provides 7 ready-to-use tools:
 | `get_memory_pool_performance` | Memory pool fault rates and tuning metrics |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/performance/tools/          # Execute
+ibmi tool <tool_name> --tools skills/performance/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/performance/tools/     # View details
 ```
 
 ## Reference Documentation

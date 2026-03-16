@@ -12,8 +12,8 @@ Assess security posture including user privileges, object authorities, vulnerabi
 The `ibmi` CLI is the primary tool for executing security queries:
 
 ```bash
-ibmi tools --tools tools/ --toolset security_default
-ibmi tool list_users_with_special_authorities --tools tools/
+ibmi tools --tools skills/security/tools/ --toolset security_default
+ibmi tool list_users_with_special_authorities --tools skills/security/tools/
 ibmi sql "SELECT AUTHORIZATION_NAME, SPECIAL_AUTHORITIES FROM QSYS2.USER_INFO_BASIC WHERE SPECIAL_AUTHORITIES IS NOT NULL"
 ```
 
@@ -63,22 +63,22 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Users with *ALLOBJ authority
 ```bash
-ibmi tool list_users_with_special_authorities --tools tools/ --authority-filter '*ALLOBJ'
+ibmi tool list_users_with_special_authorities --tools skills/security/tools/ --authority-filter '*ALLOBJ'
 ```
 
 ### Profiles vulnerable to impersonation
 ```bash
-ibmi tool list_profiles_vulnerable_to_impersonation --tools tools/
+ibmi tool list_profiles_vulnerable_to_impersonation --tools skills/security/tools/
 ```
 
 ### Files exposed to trigger attack
 ```bash
-ibmi tool list_files_exposed_to_trigger_attack --tools tools/
+ibmi tool list_files_exposed_to_trigger_attack --tools skills/security/tools/
 ```
 
 ### Group profile members
 ```bash
-ibmi tool list_group_profile_members --tools tools/ --group-filter QSECOFR
+ibmi tool list_group_profile_members --tools skills/security/tools/ --group-filter QSECOFR
 ```
 
 ## Pre-built Tools
@@ -101,9 +101,9 @@ The `tools/security.yaml` file provides 12 ready-to-use tools:
 | `list_authorization_list_users` | Users and their authorities on authorization lists |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/security/tools/          # Execute
+ibmi tool <tool_name> --tools skills/security/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/security/tools/     # View details
 ```
 
 ## Reference Documentation

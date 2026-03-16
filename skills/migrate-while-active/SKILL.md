@@ -12,8 +12,8 @@ Monitor Migrate While Active environments including migration manager state, lib
 The `ibmi` CLI is the primary tool for migration monitoring:
 
 ```bash
-ibmi tools --tools tools/ --toolset migrate_while_active_default
-ibmi tool get_migration_manager_info --tools tools/
+ibmi tools --tools skills/migrate-while-active/tools/ --toolset migrate_while_active_default
+ibmi tool get_migration_manager_info --tools skills/migrate-while-active/tools/
 ibmi sql "SELECT * FROM QSYS2.MIGRATION_MANAGER_INFO"
 ```
 
@@ -64,22 +64,22 @@ ibmi sql "SELECT * FROM QSYS2.MIGRATION_MANAGER_INFO"
 
 ### Check overall migration status
 ```bash
-ibmi tool get_migration_manager_info --tools tools/
+ibmi tool get_migration_manager_info --tools skills/migrate-while-active/tools/
 ```
 
 ### List objects being migrated
 ```bash
-ibmi tool list_library_migration --tools tools/
+ibmi tool list_library_migration --tools skills/migrate-while-active/tools/
 ```
 
 ### Find migration failures
 ```bash
-ibmi tool list_migration_failures --tools tools/
+ibmi tool list_migration_failures --tools skills/migrate-while-active/tools/
 ```
 
 ### Estimate final sync time
 ```bash
-ibmi tool estimate_final_sync_time --tools tools/
+ibmi tool estimate_final_sync_time --tools skills/migrate-while-active/tools/
 ```
 
 ## Pre-built Tools
@@ -99,9 +99,9 @@ The `tools/migrate-while-active.yaml` file provides 9 ready-to-use tools:
 | `check_migration_network_bandwidth` | Network bandwidth to copy node |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/migrate-while-active/tools/          # Execute
+ibmi tool <tool_name> --tools skills/migrate-while-active/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/migrate-while-active/tools/     # View details
 ```
 
 ## Reference Documentation

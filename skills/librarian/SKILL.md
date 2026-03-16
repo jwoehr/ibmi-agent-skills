@@ -12,8 +12,8 @@ Manage and query library lists, library contents, authorization lists, and objec
 The `ibmi` CLI is the primary tool for executing library queries:
 
 ```bash
-ibmi tools --tools tools/ --toolset librarian_default
-ibmi tool get_library_list --tools tools/
+ibmi tools --tools skills/librarian/tools/ --toolset librarian_default
+ibmi tool get_library_list --tools skills/librarian/tools/
 ibmi sql "SELECT * FROM QSYS2.LIBRARY_LIST_INFO ORDER BY ORDINAL_POSITION"
 ```
 
@@ -66,22 +66,22 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### View library list
 ```bash
-ibmi tool get_library_list --tools tools/
+ibmi tool get_library_list --tools skills/librarian/tools/
 ```
 
 ### System libraries only
 ```bash
-ibmi tool get_library_list_by_type --tools tools/ --list-type SYSTEM
+ibmi tool get_library_list_by_type --tools skills/librarian/tools/ --list-type SYSTEM
 ```
 
 ### Objects in a library
 ```bash
-ibmi tool list_library_objects --tools tools/ --library-name QGPL
+ibmi tool list_library_objects --tools skills/librarian/tools/ --library-name QGPL
 ```
 
 ### Check object privileges
 ```bash
-ibmi tool get_object_privileges --tools tools/ --object-schema QSYS --object-name QGPL --object-type '*LIB'
+ibmi tool get_object_privileges --tools skills/librarian/tools/ --object-schema QSYS --object-name QGPL --object-type '*LIB'
 ```
 
 ## Pre-built Tools
@@ -99,9 +99,9 @@ The `tools/librarian.yaml` file provides 7 ready-to-use tools:
 | `get_object_privileges` | Object-level privilege details |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/librarian/tools/          # Execute
+ibmi tool <tool_name> --tools skills/librarian/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/librarian/tools/     # View details
 ```
 
 ## Reference Documentation

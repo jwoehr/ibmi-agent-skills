@@ -12,8 +12,8 @@ Monitor and analyze network and communication resources on IBM i using SQL servi
 The `ibmi` CLI is the primary tool for executing network queries:
 
 ```bash
-ibmi tools --tools tools/ --toolset communication_default
-ibmi tool get_netstat_info --tools tools/
+ibmi tools --tools skills/communication/tools/ --toolset communication_default
+ibmi tool get_netstat_info --tools skills/communication/tools/
 ibmi sql "SELECT * FROM QSYS2.NETSTAT_INFO WHERE TCP_STATE = 'ESTABLISHED' FETCH FIRST 20 ROWS ONLY"
 ```
 
@@ -128,9 +128,9 @@ The `tools/communication.yaml` file provides 8 ready-to-use tools:
 | `get_time_protocol_info` | NTP/SNTP time server status |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/communication/tools/          # Execute
+ibmi tool <tool_name> --tools skills/communication/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/communication/tools/     # View details
 ```
 
 ## Reference Documentation

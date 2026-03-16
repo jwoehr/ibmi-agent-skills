@@ -12,8 +12,8 @@ Query and analyze backup resources on IBM i using SQL services from QSYS2.
 The `ibmi` CLI is the primary tool for executing backup queries:
 
 ```bash
-ibmi tools --tools tools/ --toolset backup_and_recovery_default
-ibmi tool get_save_file_info --tools tools/
+ibmi tools --tools skills/backup-and-recovery/tools/ --toolset backup_and_recovery_default
+ibmi tool get_save_file_info --tools skills/backup-and-recovery/tools/
 ibmi sql "SELECT * FROM QSYS2.SAVE_FILE_INFO FETCH FIRST 10 ROWS ONLY"
 ```
 
@@ -110,9 +110,9 @@ The `tools/backup-and-recovery.yaml` file provides 5 ready-to-use tools:
 | `get_tape_cartridge_info` | Tape cartridge status and location |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/backup-and-recovery/tools/          # Execute
+ibmi tool <tool_name> --tools skills/backup-and-recovery/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/backup-and-recovery/tools/     # View details
 ```
 
 ## Reference Documentation

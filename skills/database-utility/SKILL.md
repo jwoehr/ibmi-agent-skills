@@ -13,13 +13,13 @@ The `ibmi` CLI is the primary tool for executing database utility queries:
 
 ```bash
 # List all database utility tools
-ibmi tools --tools tools/ --toolset database_utility_default
+ibmi tools --tools skills/database-utility/tools/ --toolset database_utility_default
 
 # Run a specific tool
-ibmi tool list_sysfiles --tools tools/
+ibmi tool list_sysfiles --tools skills/database-utility/tools/
 
 # Run with parameters
-ibmi tool object_statistics --tools tools/ library_name=MYLIB object_type='*PGM'
+ibmi tool object_statistics --tools skills/database-utility/tools/ library_name=MYLIB object_type='*PGM'
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.SYSFILES WHERE SYSTEM_TABLE_SCHEMA = 'MYLIB'"
@@ -87,27 +87,27 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### List files in a library
 ```bash
-ibmi tool list_sysfiles --tools tools/ library_filter=MYLIB
+ibmi tool list_sysfiles --tools skills/database-utility/tools/ library_filter=MYLIB
 ```
 
 ### Check partition statistics
 ```bash
-ibmi tool get_partition_statistics --tools tools/ schema_filter=MYLIB
+ibmi tool get_partition_statistics --tools skills/database-utility/tools/ schema_filter=MYLIB
 ```
 
 ### Find related objects before changing a file
 ```bash
-ibmi tool find_related_objects --tools tools/ library_name=MYLIB file_name=CUSTMAST
+ibmi tool find_related_objects --tools skills/database-utility/tools/ library_name=MYLIB file_name=CUSTMAST
 ```
 
 ### Find objects unused for over a year
 ```bash
-ibmi tool find_unused_objects --tools tools/ library_name=MYLIB unused_days=365
+ibmi tool find_unused_objects --tools skills/database-utility/tools/ library_name=MYLIB unused_days=365
 ```
 
 ### Compare files between libraries
 ```bash
-ibmi tool compare_file --tools tools/ library1=TESTLIB file1=ORDERS library2=PRODLIB file2=ORDERS
+ibmi tool compare_file --tools skills/database-utility/tools/ library1=TESTLIB file1=ORDERS library2=PRODLIB file2=ORDERS
 ```
 
 ## Pre-built Tools
@@ -127,9 +127,9 @@ The `tools/database-utility.yaml` file provides 9 ready-to-use tools:
 | `find_unused_objects` | Find objects not used within N days |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/database-utility/tools/          # Execute
+ibmi tool <tool_name> --tools skills/database-utility/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/database-utility/tools/     # View details
 ```
 
 ## Reference Documentation

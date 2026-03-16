@@ -12,8 +12,8 @@ Manage and inspect journals, journal receivers, journaled objects, journal entri
 The `ibmi` CLI is the primary tool for journal queries:
 
 ```bash
-ibmi tools --tools tools/ --toolset journal_default
-ibmi tool list_journals --tools tools/
+ibmi tools --tools skills/journal/tools/ --toolset journal_default
+ibmi tool list_journals --tools skills/journal/tools/
 ibmi sql "SELECT JOURNAL_NAME, JOURNAL_LIBRARY, JOURNAL_TYPE FROM QSYS2.JOURNAL_INFO"
 ```
 
@@ -65,22 +65,22 @@ ibmi sql "SELECT JOURNAL_NAME, JOURNAL_LIBRARY, JOURNAL_TYPE FROM QSYS2.JOURNAL_
 
 ### List all journals
 ```bash
-ibmi tool list_journals --tools tools/
+ibmi tool list_journals --tools skills/journal/tools/
 ```
 
 ### List receivers for a specific journal
 ```bash
-ibmi tool list_journal_receiver_chain --tools tools/ --journal-library QSYS --journal-name QAUDJRN
+ibmi tool list_journal_receiver_chain --tools skills/journal/tools/ --journal-library QSYS --journal-name QAUDJRN
 ```
 
 ### Read recent journal entries
 ```bash
-ibmi tool display_journal_entries --tools tools/ --journal-library QSYS --journal-name QAUDJRN --minutes-ago 30
+ibmi tool display_journal_entries --tools skills/journal/tools/ --journal-library QSYS --journal-name QAUDJRN --minutes-ago 30
 ```
 
 ### Find largest receivers
 ```bash
-ibmi tool list_large_journal_receivers --tools tools/ --min-size-mb 100
+ibmi tool list_large_journal_receivers --tools skills/journal/tools/ --min-size-mb 100
 ```
 
 ## Pre-built Tools
@@ -101,9 +101,9 @@ The `tools/journal.yaml` file provides 10 ready-to-use tools:
 | `get_audit_journal_data_mart_info` | Audit data mart build status |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/journal/tools/          # Execute
+ibmi tool <tool_name> --tools skills/journal/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/journal/tools/     # View details
 ```
 
 ## Reference Documentation

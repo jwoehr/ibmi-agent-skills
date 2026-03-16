@@ -13,10 +13,10 @@ The `ibmi` CLI is the primary tool for executing storage queries:
 
 ```bash
 # List all storage tools
-ibmi tools --tools tools/ --toolset storage_default
+ibmi tools --tools skills/storage/tools/ --toolset storage_default
 
 # Run a specific tool
-ibmi tool get_asp_info --tools tools/
+ibmi tool get_asp_info --tools skills/storage/tools/
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.ASP_INFO ORDER BY ASP_NUMBER"
@@ -135,9 +135,9 @@ The `tools/storage.yaml` file provides 9 ready-to-use tools:
 | `get_locking_policy_info` | NVMe locking policy status |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/storage/tools/          # Execute
+ibmi tool <tool_name> --tools skills/storage/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/storage/tools/     # View details
 ```
 
 ## Reference Documentation

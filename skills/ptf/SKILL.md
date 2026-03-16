@@ -13,10 +13,10 @@ The `ibmi` CLI is the primary tool for executing PTF queries:
 
 ```bash
 # List all PTF tools
-ibmi tools --tools tools/ --toolset ptf_default
+ibmi tools --tools skills/ptf/tools/ --toolset ptf_default
 
 # Run a specific tool
-ibmi tool check_ptf_currency --tools tools/
+ibmi tool check_ptf_currency --tools skills/ptf/tools/
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.GROUP_PTF_INFO WHERE PTF_GROUP_STATUS = 'INSTALLED'"
@@ -74,17 +74,17 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Check all PTF group currency
 ```bash
-ibmi tool check_ptf_currency --tools tools/
+ibmi tool check_ptf_currency --tools skills/ptf/tools/
 ```
 
 ### Find groups with updates available
 ```bash
-ibmi tool list_outdated_ptf_groups --tools tools/
+ibmi tool list_outdated_ptf_groups --tools skills/ptf/tools/
 ```
 
 ### List PTFs for a product
 ```bash
-ibmi tool list_individual_ptfs --tools tools/ product_filter=5770SS1
+ibmi tool list_individual_ptfs --tools skills/ptf/tools/ product_filter=5770SS1
 ```
 
 ### PTF currency summary
@@ -123,9 +123,9 @@ The `tools/ptf.yaml` file provides 8 ready-to-use tools:
 | `check_defective_ptfs` | Check for IBM-identified defective PTFs |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/ptf/tools/          # Execute
+ibmi tool <tool_name> --tools skills/ptf/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/ptf/tools/     # View details
 ```
 
 ## Reference Documentation

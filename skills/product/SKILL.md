@@ -12,8 +12,8 @@ Query installed software products, licensing, and product health using SQL servi
 The `ibmi` CLI is the primary tool for executing product queries:
 
 ```bash
-ibmi tools --tools tools/ --toolset product_default
-ibmi tool list_software_products --tools tools/
+ibmi tools --tools skills/product/tools/ --toolset product_default
+ibmi tool list_software_products --tools skills/product/tools/
 ibmi sql "SELECT * FROM QSYS2.SOFTWARE_PRODUCT_INFO WHERE INSTALLED = 'YES' AND LOAD_ERROR = 'YES'"
 ```
 
@@ -54,27 +54,27 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### List installed products
 ```bash
-ibmi tool list_software_products --tools tools/
+ibmi tool list_software_products --tools skills/product/tools/
 ```
 
 ### Details for a specific product
 ```bash
-ibmi tool get_software_product_detail --tools tools/ --product-id 5770SS1
+ibmi tool get_software_product_detail --tools skills/product/tools/ --product-id 5770SS1
 ```
 
 ### Products with errors
 ```bash
-ibmi tool list_software_errors --tools tools/
+ibmi tool list_software_errors --tools skills/product/tools/
 ```
 
 ### License compliance
 ```bash
-ibmi tool get_license_info --tools tools/
+ibmi tool get_license_info --tools skills/product/tools/
 ```
 
 ### Unsupported products
 ```bash
-ibmi tool list_unsupported_products --tools tools/
+ibmi tool list_unsupported_products --tools skills/product/tools/
 ```
 
 ## Pre-built Tools
@@ -90,9 +90,9 @@ The `tools/product.yaml` file provides 5 ready-to-use tools:
 | `list_unsupported_products` | Unsupported, incompatible, or errored products |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/product/tools/          # Execute
+ibmi tool <tool_name> --tools skills/product/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/product/tools/     # View details
 ```
 
 ## Reference Documentation

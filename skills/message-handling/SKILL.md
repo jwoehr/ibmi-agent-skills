@@ -13,10 +13,10 @@ The `ibmi` CLI is the primary tool for executing message queries:
 
 ```bash
 # List all message handling tools
-ibmi tools --tools tools/ --toolset message_handling_default
+ibmi tools --tools skills/message-handling/tools/ --toolset message_handling_default
 
 # Run a specific tool
-ibmi tool read_message_queue --tools tools/
+ibmi tool read_message_queue --tools skills/message-handling/tools/
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.MESSAGE_QUEUE_INFO WHERE MESSAGE_QUEUE_NAME = 'QSYSOPR' AND MESSAGE_QUEUE_LIBRARY = 'QSYS' FETCH FIRST 10 ROWS ONLY"
@@ -76,17 +76,17 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Read system operator messages
 ```bash
-ibmi tool read_message_queue --tools tools/
+ibmi tool read_message_queue --tools skills/message-handling/tools/
 ```
 
 ### Find high-severity messages (40+)
 ```bash
-ibmi tool read_high_severity_messages --tools tools/ severity_min=40
+ibmi tool read_high_severity_messages --tools skills/message-handling/tools/ severity_min=40
 ```
 
 ### Search history log
 ```bash
-ibmi tool search_history_log --tools tools/ search_term=CPF1124
+ibmi tool search_history_log --tools skills/message-handling/tools/ search_term=CPF1124
 ```
 
 ### Look up a message definition
@@ -124,9 +124,9 @@ The `tools/message-handling.yaml` file provides 8 ready-to-use tools:
 | `get_joblog_info` | Job log messages for a specific job or the current job |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/message-handling/tools/          # Execute
+ibmi tool <tool_name> --tools skills/message-handling/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/message-handling/tools/     # View details
 ```
 
 ## Reference Documentation

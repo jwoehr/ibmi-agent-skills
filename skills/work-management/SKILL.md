@@ -13,10 +13,10 @@ The `ibmi` CLI is the primary tool for executing work management queries:
 
 ```bash
 # List all work management tools
-ibmi tools --tools tools/ --toolset work_management_default
+ibmi tools --tools skills/work-management/tools/ --toolset work_management_default
 
 # Run a specific tool
-ibmi tool list_active_jobs --tools tools/
+ibmi tool list_active_jobs --tools skills/work-management/tools/
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO(JOB_NAME_FILTER => '*')) X"
@@ -236,9 +236,9 @@ The `tools/work-management.yaml` file provides 8 ready-to-use tools:
 | `find_jobs_by_user` | All jobs for a user across all statuses |
 
 ```bash
-ibmi tool <tool_name> --tools tools/          # Execute
-ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools tools/     # View details
+ibmi tool <tool_name> --tools skills/work-management/tools/          # Execute
+ibmi tool <tool_name> --tools skills/work-management/tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools skills/work-management/tools/     # View details
 ```
 
 ## Reference Documentation
@@ -248,4 +248,3 @@ ibmi tools show <tool_name> --tools tools/     # View details
 - [Example SQL Patterns](./references/work-management-and-jobs.sql) - Working query examples
 - [IBM ACTIVE_JOB_INFO](https://www.ibm.com/support/pages/node/1128579) - Enhancement history
 - [IBM JOB_INFO](https://www.ibm.com/support/pages/node/1128615) - Enhancement history
-

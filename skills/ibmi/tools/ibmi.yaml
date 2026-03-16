@@ -1,0 +1,216 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_tables_in_schema:
+    source: ibmi-system
+    description: "List tables and views in a schema with row counts, column counts, and table type. Joins SYSTABLES with SYSTABLESTAT for size data. Optionally filter by table name pattern."
+    parameters:
+      - name: schema_name
+        type: string
+        description: "Schema (library) name to list tables from (e.g., 'QSYS2', 'MYLIB')."
+        required: true
+      - name: table_filter
+        type: string
+        description: "Optional table name pattern to filter by (e.g., '%JOB%'). Leave empty for all tables."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of tables to return."
+        default: 100
+    statement: |
+      SELECT T.TABLE_NAME, T.TABLE_TYPE, T.TABLE_TEXT, T.COLUMN_COUNT,
+             S.NUMBER_ROWS, S.DATA_SIZE, S.LAST_USED_TIMESTAMP
+        FROM QSYS2.SYSTABLES T
+        INNER JOIN QSYS2.SYSTABLESTAT S
+          ON T.TABLE_SCHEMA = S.TABLE_SCHEMA
+         AND T.TABLE_NAME = S.TABLE_NAME
+        WHERE T.TABLE_SCHEMA = UPPER(:schema_name)
+          AND (:table_filter = '' OR UPPER(T.TABLE_NAME) LIKE UPPER(:table_filter))
+        ORDER BY S.NUMBER_ROWS DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ibmi"
+      category: "discovery"
+
+  get_column_info:
+    source: ibmi-system
+    description: "Get column metadata for a table or view including name, data type, length, nullability, default values, and column text. Use this to discover exact column names before writing SQL."
+    parameters:
+      - name: schema_name
+        type: string
+        description: "Schema (library) name containing the table (e.g., 'QSYS2')."
+        required: true
+      - name: table_name
+        type: string
+        description: "Table or view name to get columns for (e.g., 'SYSTABLES')."
+        required: true
+    statement: |
+      SELECT COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE, LENGTH,
+             NUMERIC_SCALE, NUMERIC_PRECISION, IS_NULLABLE,
+             HAS_DEFAULT, COLUMN_DEFAULT, COLUMN_TEXT,
+             SYSTEM_COLUMN_NAME, CCSID, HIDDEN
+        FROM QSYS2.SYSCOLUMNS
+        WHERE TABLE_SCHEMA = UPPER(:schema_name)
+          AND TABLE_NAME = UPPER(:table_name)
+        ORDER BY ORDINAL_POSITION
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ibmi"
+      category: "discovery"
+
+  validate_query:
+    source: ibmi-system
+    description: "Validate SQL syntax without executing. Uses QSYS2.PARSE_STATEMENT to parse the SQL and return referenced tables, columns, and statement type. If the SQL is invalid, an error is returned. Use this before running any complex query."
+    parameters:
+      - name: sql_statement
+        type: string
+        description: "The SQL statement to validate (e.g., 'SELECT * FROM QSYS2.SYSTABLES')."
+        required: true
+    statement: |
+      SELECT NAME_TYPE, NAME, SCHEMA, COLUMN_NAME,
+             USAGE_TYPE, SQL_STATEMENT_TYPE
+        FROM TABLE(QSYS2.PARSE_STATEMENT(
+          SQL_STATEMENT => :sql_statement,
+          NAMING => '*SQL'
+        )) AS P
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ibmi"
+      category: "validation"
+
+  sample_rows:
+    source: ibmi-system
+    description: "Generate a sample SELECT query string for a table. Returns the query text along with column names so you can copy, customize, and execute it. Does not execute the sample query itself."
+    parameters:
+      - name: schema_name
+        type: string
+        description: "Schema (library) name containing the table."
+        required: true
+      - name: table_name
+        type: string
+        description: "Table or view name to sample from."
+        required: true
+      - name: sample_size
+        type: integer
+        description: "Number of rows for the FETCH FIRST clause in the generated query."
+        default: 10
+    statement: |
+      SELECT 'SELECT ' CONCAT
+             LISTAGG(C.COLUMN_NAME, ', ') WITHIN GROUP (ORDER BY C.ORDINAL_POSITION) CONCAT
+             ' FROM ' CONCAT UPPER(:schema_name) CONCAT '.' CONCAT UPPER(:table_name) CONCAT
+             ' FETCH FIRST ' CONCAT TRIM(CAST(:sample_size AS VARCHAR(10))) CONCAT ' ROWS ONLY'
+             AS SAMPLE_QUERY,
+             COUNT(*) AS COLUMN_COUNT
+        FROM QSYS2.SYSCOLUMNS C
+        WHERE C.TABLE_SCHEMA = UPPER(:schema_name)
+          AND C.TABLE_NAME = UPPER(:table_name)
+          AND C.HIDDEN = 'N'
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ibmi"
+      category: "discovery"
+
+  get_table_statistics:
+    source: ibmi-system
+    description: "Get detailed table statistics: row count, data size, deleted rows, last used/changed/saved timestamps, I/O operation counts, and index information. Works for both tables and views (views may have NULL statistics)."
+    parameters:
+      - name: schema_name
+        type: string
+        description: "Schema (library) name containing the table."
+        required: true
+      - name: table_name
+        type: string
+        description: "Table or view name to get statistics for."
+        required: true
+    statement: |
+      SELECT T.TABLE_NAME, T.TABLE_TYPE, T.TABLE_TEXT, T.COLUMN_COUNT, T.ROW_LENGTH,
+             S.NUMBER_ROWS, S.DATA_SIZE, S.NUMBER_DELETED_ROWS,
+             S.LAST_USED_TIMESTAMP, S.LAST_CHANGE_TIMESTAMP, S.LAST_SAVE_TIMESTAMP,
+             S.DAYS_USED_COUNT, S.NUMBER_DISTINCT_INDEXES,
+             S.OPEN_OPERATIONS, S.CLOSE_OPERATIONS,
+             S.INSERT_OPERATIONS, S.UPDATE_OPERATIONS, S.DELETE_OPERATIONS,
+             S.LOGICAL_READS, S.PHYSICAL_READS
+        FROM QSYS2.SYSTABLES T
+        LEFT JOIN QSYS2.SYSTABLESTAT S
+          ON T.TABLE_SCHEMA = S.TABLE_SCHEMA
+         AND T.TABLE_NAME = S.TABLE_NAME
+        WHERE T.TABLE_SCHEMA = UPPER(:schema_name)
+          AND T.TABLE_NAME = UPPER(:table_name)
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ibmi"
+      category: "discovery"
+
+  search_services:
+    source: ibmi-system
+    description: "Search the QSYS2.SERVICES_INFO catalog by keyword in SERVICE_NAME. Returns matching SQL services with their category, schema, object type, and usage example. Use this to find the right SQL service for a task."
+    parameters:
+      - name: keyword
+        type: string
+        description: "Keyword to search for in service names (e.g., 'JOB', 'DISK', 'PTF')."
+        required: true
+    statement: |
+      SELECT SERVICE_CATEGORY, SERVICE_SCHEMA_NAME, SERVICE_NAME,
+             SQL_OBJECT_TYPE, EARLIEST_POSSIBLE_RELEASE, EXAMPLE
+        FROM QSYS2.SERVICES_INFO
+        WHERE UPPER(SERVICE_NAME) LIKE '%' CONCAT UPPER(:keyword) CONCAT '%'
+        ORDER BY SERVICE_CATEGORY, SERVICE_NAME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ibmi"
+      category: "catalog"
+
+  list_service_categories:
+    source: ibmi-system
+    description: "List all SQL service categories with the count of services in each. Use this to browse what is available in the QSYS2.SERVICES_INFO catalog before drilling into a specific category."
+    parameters: []
+    statement: |
+      SELECT SERVICE_CATEGORY, COUNT(*) AS SERVICE_COUNT
+        FROM QSYS2.SERVICES_INFO
+        GROUP BY SERVICE_CATEGORY
+        ORDER BY SERVICE_COUNT DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ibmi"
+      category: "catalog"
+
+toolsets:
+  ibmi_core:
+    title: "IBM i Core Tools"
+    description: "Schema discovery, SQL validation, and service catalog tools. Foundation tools for any IBM i task."
+    tools:
+      - list_tables_in_schema
+      - get_column_info
+      - validate_query
+      - sample_rows
+      - get_table_statistics
+      - search_services
+      - list_service_categories

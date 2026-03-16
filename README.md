@@ -1,6 +1,6 @@
 # IBM i Agent Skills
 
-Agent skills for AI coding assistants to work with IBM i systems. **23 skills** covering all IBM i SQL Service categories with **212 pre-built tools**.
+Agent skills for AI coding assistants to work with IBM i systems. **24 skills** covering all IBM i SQL Service categories with **219+ pre-built tools**.
 
 ## What are Agent Skills?
 
@@ -8,16 +8,28 @@ Agents are increasingly capable, but often don't have the context they need to d
 
 ## Installation
 
-### Option 1: Claude Code Plugin Marketplace
+Skills are organized into **plugins** so you can install only what you need:
 
-Add the marketplace and install the plugin directly in Claude Code:
+| Plugin | Skills | Tools | Audience |
+|--------|--------|-------|----------|
+| **ibmi-core** | 1 (ibmi) | 7 | Everyone — CLI, text-to-SQL, schema discovery |
+| **ibmi-database** | 5 | 51 | DBAs, SQL developers |
+| **ibmi-system** | 18 | 161 | Sysadmins, operators, security, DevOps |
+| **ibmi-all** | 24 | 219+ | Install everything |
+
+### Option 1: Claude Code Plugin Marketplace
 
 ```
 /plugin marketplace add ajshedivy/ibmi-agent-skills
-/plugin install ibmi-sql-services@ibmi-agent-skills
-```
 
-This installs all 23 skills and configures the `ibmi-mcp-server` automatically.
+# Install by role:
+/plugin install ibmi-core@ibmi-agent-skills          # Start here
+/plugin install ibmi-database@ibmi-agent-skills       # For DBAs
+/plugin install ibmi-system@ibmi-agent-skills          # For sysadmins
+
+# Or install everything:
+/plugin install ibmi-all@ibmi-agent-skills
+```
 
 ### Option 2: npx skills (Multi-Agent)
 
@@ -31,8 +43,8 @@ npx skills add ajshedivy/ibmi-agent-skills
 git clone https://github.com/ajshedivy/ibmi-agent-skills.git
 cd ibmi-agent-skills
 npx skills add ./skills --list           # List available skills
+npx skills add ./skills/ibmi             # Core skill (start here)
 npx skills add ./skills                  # Install all skills
-npx skills add ./skills/work-management  # Install a specific skill
 ```
 
 #### Options
@@ -100,7 +112,25 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 
 ## Available Skills
 
-### Core System
+### Core (ibmi-core plugin)
+
+| Skill | Tools | Description |
+|-------|-------|-------------|
+| `ibmi` | 7 | CLI usage, text-to-SQL methodology, schema discovery, SQL validation |
+
+### Database (ibmi-database plugin)
+
+| Skill | Tools | Description |
+|-------|-------|-------------|
+| `database-utility` | 9 | File inventory, object stats, data validation |
+| `database-application` | 7 | SQL error logs, SQLCODE info, system limits |
+| `database-performance` | 8 | Indexes, MTI, monitors, MQTs, active queries |
+| `database-plan-cache` | 7 | Plan cache snapshots, events, procedures |
+| `journal` | 13 | Journals, receivers, journaled objects, audit events |
+
+### System (ibmi-system plugin)
+
+#### Core System
 
 | Skill | Tools | Description |
 |-------|-------|-------------|
@@ -110,7 +140,7 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 | `communication` | 11 | Network connections, routing, HTTP servers, TCP/IP, DB connections, DNS |
 | `application` | 13 | Commands, data areas, data queues, programs, transactions, call stacks |
 
-### Operations & Monitoring
+#### Operations & Monitoring
 
 | Skill | Tools | Description |
 |-------|-------|-------------|
@@ -120,16 +150,7 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 | `system-health` | 8 | System status, memory pools, disk, limits |
 | `performance` | 7 | Collection services, temp storage, I/O metrics |
 
-### Database
-
-| Skill | Tools | Description |
-|-------|-------|-------------|
-| `database-utility` | 9 | File inventory, object stats, data validation |
-| `database-application` | 7 | SQL error logs, SQLCODE info, system limits |
-| `database-performance` | 8 | Indexes, MTI, monitors, MQTs, active queries |
-| `database-plan-cache` | 7 | Plan cache snapshots, events, procedures |
-
-### Security & Infrastructure
+#### Security & Infrastructure
 
 | Skill | Tools | Description |
 |-------|-------|-------------|
@@ -148,7 +169,7 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 | `journal` | 13 | Journals, receivers, journaled objects, audit events |
 | `mirror` | 12 | Db2 Mirror status, replication, NRG, reclone |
 
-**Total: 23 skills, 212 tools**
+**Total: 24 skills, 219+ tools**
 
 ## Managing Skills
 

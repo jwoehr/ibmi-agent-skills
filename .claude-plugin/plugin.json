@@ -1,7 +1,7 @@
 {
   "name": "ibmi-agent-skills",
-  "description": "23 agent skills for IBM i SQL Services — full coverage of work management, database, security, storage, communication, and system administration via QSYS2 and SYSTOOLS services.",
-  "version": "1.0.0",
+  "description": "23 agent skills with 212 tools for IBM i SQL Services — full coverage of work management, database, security, storage, communication, and system administration via QSYS2 and SYSTOOLS services.",
+  "version": "1.1.0",
   "author": {
     "name": "Adam Shedivy",
     "email": "ajshedivy@gmail.com"

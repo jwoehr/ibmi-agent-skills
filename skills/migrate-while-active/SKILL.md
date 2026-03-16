@@ -9,11 +9,14 @@ Monitor Migrate While Active environments including migration manager state, lib
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for migration monitoring:
+The `ibmi` CLI is the primary tool for migration monitoring. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/migrate-while-active/tools/ --toolset migrate_while_active_default
-ibmi tool get_migration_manager_info --tools skills/migrate-while-active/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/migrate-while-active, ~/.claude/skills/migrate-while-active
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset migrate_while_active_default
+ibmi tool get_migration_manager_info --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.MIGRATION_MANAGER_INFO"
 ```
 
@@ -64,22 +67,22 @@ ibmi sql "SELECT * FROM QSYS2.MIGRATION_MANAGER_INFO"
 
 ### Check overall migration status
 ```bash
-ibmi tool get_migration_manager_info --tools skills/migrate-while-active/tools/
+ibmi tool get_migration_manager_info --tools "$SKILL_DIR/tools/"
 ```
 
 ### List objects being migrated
 ```bash
-ibmi tool list_library_migration --tools skills/migrate-while-active/tools/
+ibmi tool list_library_migration --tools "$SKILL_DIR/tools/"
 ```
 
 ### Find migration failures
 ```bash
-ibmi tool list_migration_failures --tools skills/migrate-while-active/tools/
+ibmi tool list_migration_failures --tools "$SKILL_DIR/tools/"
 ```
 
 ### Estimate final sync time
 ```bash
-ibmi tool estimate_final_sync_time --tools skills/migrate-while-active/tools/
+ibmi tool estimate_final_sync_time --tools "$SKILL_DIR/tools/"
 ```
 
 ## Pre-built Tools
@@ -99,9 +102,9 @@ The `tools/migrate-while-active.yaml` file provides 9 ready-to-use tools:
 | `check_migration_network_bandwidth` | Network bandwidth to copy node |
 
 ```bash
-ibmi tool <tool_name> --tools skills/migrate-while-active/tools/          # Execute
-ibmi tool <tool_name> --tools skills/migrate-while-active/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/migrate-while-active/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

@@ -9,14 +9,17 @@ Manage and analyze spooled files, output queues, and printer configurations usin
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing spool queries:
+The `ibmi` CLI is the primary tool for executing spool queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/spool, ~/.claude/skills/spool
+
 # List all spool tools
-ibmi tools --tools skills/spool/tools/ --toolset spool_default
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset spool_default
 
 # Run a specific tool
-ibmi tool list_output_queues --tools skills/spool/tools/
+ibmi tool list_output_queues --tools "$SKILL_DIR/tools/"
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC WHERE USER_NAME = 'MYUSER'"
@@ -70,17 +73,17 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### List output queues with most files
 ```bash
-ibmi tool list_output_queues --tools skills/spool/tools/
+ibmi tool list_output_queues --tools "$SKILL_DIR/tools/"
 ```
 
 ### Find spool files for a user
 ```bash
-ibmi tool list_spool_files_basic --tools skills/spool/tools/ user_filter=MYUSER
+ibmi tool list_spool_files_basic --tools "$SKILL_DIR/tools/" user_filter=MYUSER
 ```
 
 ### Find old spool files (90+ days)
 ```bash
-ibmi tool find_old_spool_files --tools skills/spool/tools/ days_old=90
+ibmi tool find_old_spool_files --tools "$SKILL_DIR/tools/" days_old=90
 ```
 
 ### Read spool file content
@@ -119,9 +122,9 @@ The `tools/spool.yaml` file provides 9 ready-to-use tools:
 | `spool_storage_summary` | System-wide spool storage summary with status counts |
 
 ```bash
-ibmi tool <tool_name> --tools skills/spool/tools/          # Execute
-ibmi tool <tool_name> --tools skills/spool/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/spool/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

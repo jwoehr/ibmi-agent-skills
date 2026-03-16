@@ -9,17 +9,20 @@ Analyze SQL application behavior including error logs, statement parsing, SQLCOD
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing database application queries:
+The `ibmi` CLI is the primary tool for executing database application queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/database-application, ~/.claude/skills/database-application
+
 # List all database application tools
-ibmi tools --tools skills/database-application/tools/ --toolset database_application_default
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset database_application_default
 
 # Run a specific tool
-ibmi tool list_sql_error_log --tools skills/database-application/tools/
+ibmi tool list_sql_error_log --tools "$SKILL_DIR/tools/"
 
 # Run with parameters
-ibmi tool get_sqlcode_info --tools skills/database-application/tools/ sqlcode=-204
+ibmi tool get_sqlcode_info --tools "$SKILL_DIR/tools/" sqlcode=-204
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.SQL_ERROR_LOG ORDER BY LOGGED_TIME DESC FETCH FIRST 10 ROWS ONLY"
@@ -80,27 +83,27 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### View recent SQL errors
 ```bash
-ibmi tool list_sql_error_log --tools skills/database-application/tools/
+ibmi tool list_sql_error_log --tools "$SKILL_DIR/tools/"
 ```
 
 ### Errors for a specific program
 ```bash
-ibmi tool list_sql_error_log --tools skills/database-application/tools/ program_name=MYPGM program_library=MYLIB
+ibmi tool list_sql_error_log --tools "$SKILL_DIR/tools/" program_name=MYPGM program_library=MYLIB
 ```
 
 ### Look up an SQLCODE
 ```bash
-ibmi tool get_sqlcode_info --tools skills/database-application/tools/ sqlcode=-204
+ibmi tool get_sqlcode_info --tools "$SKILL_DIR/tools/" sqlcode=-204
 ```
 
 ### Parse a SQL statement
 ```bash
-ibmi tool parse_sql_statement --tools skills/database-application/tools/ sql_statement="SELECT * FROM MYLIB.ORDERS JOIN MYLIB.CUSTOMERS ON ORDERS.CUSTID = CUSTOMERS.ID"
+ibmi tool parse_sql_statement --tools "$SKILL_DIR/tools/" sql_statement="SELECT * FROM MYLIB.ORDERS JOIN MYLIB.CUSTOMERS ON ORDERS.CUSTID = CUSTOMERS.ID"
 ```
 
 ### Find objects near capacity limits
 ```bash
-ibmi tool get_system_limits_near_max --tools skills/database-application/tools/ threshold_pct=75
+ibmi tool get_system_limits_near_max --tools "$SKILL_DIR/tools/" threshold_pct=75
 ```
 
 ## Pre-built Tools
@@ -118,9 +121,9 @@ The `tools/database-application.yaml` file provides 7 ready-to-use tools:
 | `get_system_limits_near_max` | Objects approaching their capacity maximums |
 
 ```bash
-ibmi tool <tool_name> --tools skills/database-application/tools/          # Execute
-ibmi tool <tool_name> --tools skills/database-application/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/database-application/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

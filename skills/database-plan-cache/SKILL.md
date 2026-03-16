@@ -9,17 +9,20 @@ Explore and manage the SQL plan cache including service discovery, snapshot anal
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing plan cache queries:
+The `ibmi` CLI is the primary tool for executing plan cache queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/database-plan-cache, ~/.claude/skills/database-plan-cache
+
 # List all plan cache tools
-ibmi tools --tools skills/database-plan-cache/tools/ --toolset database_plan_cache_default
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset database_plan_cache_default
 
 # Run a specific tool
-ibmi tool list_plan_cache_services --tools skills/database-plan-cache/tools/
+ibmi tool list_plan_cache_services --tools "$SKILL_DIR/tools/"
 
 # Run with parameters
-ibmi tool get_plan_cache_procedure_details --tools skills/database-plan-cache/tools/ procedure_name=DUMP_PLAN_CACHE
+ibmi tool get_plan_cache_procedure_details --tools "$SKILL_DIR/tools/" procedure_name=DUMP_PLAN_CACHE
 
 # Ad-hoc SQL for plan cache analysis
 ibmi sql "SELECT * FROM QSYS2.SERVICES_INFO WHERE SERVICE_CATEGORY = 'DATABASE-PLAN CACHE'"
@@ -87,22 +90,22 @@ The `ibmi-mcp-server` also provides `execute_sql` for MCP-connected agents. Plan
 
 ### List all plan cache services
 ```bash
-ibmi tool list_plan_cache_services --tools skills/database-plan-cache/tools/
+ibmi tool list_plan_cache_services --tools "$SKILL_DIR/tools/"
 ```
 
 ### Get procedure parameters
 ```bash
-ibmi tool get_plan_cache_procedure_details --tools skills/database-plan-cache/tools/ procedure_name=DUMP_PLAN_CACHE_TOPN
+ibmi tool get_plan_cache_procedure_details --tools "$SKILL_DIR/tools/" procedure_name=DUMP_PLAN_CACHE_TOPN
 ```
 
 ### Find existing snapshots
 ```bash
-ibmi tool list_plan_cache_snapshots --tools skills/database-plan-cache/tools/
+ibmi tool list_plan_cache_snapshots --tools "$SKILL_DIR/tools/"
 ```
 
 ### Get management SQL syntax
 ```bash
-ibmi tool get_plan_cache_management_sql --tools skills/database-plan-cache/tools/
+ibmi tool get_plan_cache_management_sql --tools "$SKILL_DIR/tools/"
 ```
 
 ### Dump top 50 queries (via ad-hoc SQL)
@@ -137,9 +140,9 @@ The `tools/database-plan-cache.yaml` file provides 7 ready-to-use tools:
 | `get_plan_cache_management_sql` | Ready-to-use CALL statements for all operations |
 
 ```bash
-ibmi tool <tool_name> --tools skills/database-plan-cache/tools/          # Execute
-ibmi tool <tool_name> --tools skills/database-plan-cache/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/database-plan-cache/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

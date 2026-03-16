@@ -9,14 +9,17 @@ Query, monitor, and analyze jobs on IBM i using SQL table functions `QSYS2.JOB_I
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing work management queries:
+The `ibmi` CLI is the primary tool for executing work management queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/work-management, ~/.claude/skills/work-management
+
 # List all work management tools
-ibmi tools --tools skills/work-management/tools/ --toolset work_management_default
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset work_management_default
 
 # Run a specific tool
-ibmi tool list_active_jobs --tools skills/work-management/tools/
+ibmi tool list_active_jobs --tools "$SKILL_DIR/tools/"
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO(JOB_NAME_FILTER => '*')) X"
@@ -236,9 +239,9 @@ The `tools/work-management.yaml` file provides 8 ready-to-use tools:
 | `find_jobs_by_user` | All jobs for a user across all statuses |
 
 ```bash
-ibmi tool <tool_name> --tools skills/work-management/tools/          # Execute
-ibmi tool <tool_name> --tools skills/work-management/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/work-management/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

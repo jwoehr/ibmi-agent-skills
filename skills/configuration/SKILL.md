@@ -9,11 +9,14 @@ Query system configuration including system values, hardware resources, device s
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing configuration queries:
+The `ibmi` CLI is the primary tool for executing configuration queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/configuration/tools/ --toolset configuration_default
-ibmi tool get_system_values --tools skills/configuration/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/configuration, ~/.claude/skills/configuration
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset configuration_default
+ibmi tool get_system_values --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.SYSTEM_VALUE_INFO WHERE SYSTEM_VALUE_NAME = 'QSECURITY'"
 ```
 
@@ -68,22 +71,22 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Security system values
 ```bash
-ibmi tool get_security_system_values --tools skills/configuration/tools/
+ibmi tool get_security_system_values --tools "$SKILL_DIR/tools/"
 ```
 
 ### Look up a specific system value
 ```bash
-ibmi tool get_system_value --tools skills/configuration/tools/ --sysval-name QSECURITY
+ibmi tool get_system_value --tools "$SKILL_DIR/tools/" --sysval-name QSECURITY
 ```
 
 ### Hardware resources
 ```bash
-ibmi tool get_hardware_resources --tools skills/configuration/tools/
+ibmi tool get_hardware_resources --tools "$SKILL_DIR/tools/"
 ```
 
 ### Configuration object status
 ```bash
-ibmi tool get_configuration_status --tools skills/configuration/tools/
+ibmi tool get_configuration_status --tools "$SKILL_DIR/tools/"
 ```
 
 ## Pre-built Tools
@@ -101,9 +104,9 @@ The `tools/configuration.yaml` file provides 7 ready-to-use tools:
 | `get_jvm_info` | Active JVM heap, GC, and thread information |
 
 ```bash
-ibmi tool <tool_name> --tools skills/configuration/tools/          # Execute
-ibmi tool <tool_name> --tools skills/configuration/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/configuration/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

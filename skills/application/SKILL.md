@@ -9,11 +9,14 @@ Query and explore application objects on IBM i using SQL services from QSYS2.
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing application queries:
+The `ibmi` CLI is the primary tool for executing application queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/application/tools/ --toolset application_default
-ibmi tool list_programs --tools skills/application/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/application, ~/.claude/skills/application
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset application_default
+ibmi tool list_programs --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.PROGRAM_INFO WHERE PROGRAM_LIBRARY = 'MYLIB' FETCH FIRST 20 ROWS ONLY"
 ```
 
@@ -147,9 +150,9 @@ The `tools/application.yaml` file provides 8 ready-to-use tools:
 | `list_watches` | Watch sessions and status |
 
 ```bash
-ibmi tool <tool_name> --tools skills/application/tools/          # Execute
-ibmi tool <tool_name> --tools skills/application/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/application/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

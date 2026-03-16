@@ -9,11 +9,14 @@ Monitor Java Virtual Machines running on IBM i including heap memory, garbage co
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing JVM queries:
+The `ibmi` CLI is the primary tool for executing JVM queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/java/tools/ --toolset java_default
-ibmi tool list_jvms --tools skills/java/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/java, ~/.claude/skills/java
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset java_default
+ibmi tool list_jvms --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT JOB_NAME, CURRENT_HEAP_SIZE, IN_USE_HEAP_SIZE FROM QSYS2.JVM_INFO"
 ```
 
@@ -53,22 +56,22 @@ ibmi sql "SELECT JOB_NAME, CURRENT_HEAP_SIZE, IN_USE_HEAP_SIZE FROM QSYS2.JVM_IN
 
 ### List all active JVMs
 ```bash
-ibmi tool list_jvms --tools skills/java/tools/
+ibmi tool list_jvms --tools "$SKILL_DIR/tools/"
 ```
 
 ### Find JVMs using more than 80% heap
 ```bash
-ibmi tool list_jvms_by_heap_usage --tools skills/java/tools/ --min-heap-pct 80
+ibmi tool list_jvms_by_heap_usage --tools "$SKILL_DIR/tools/" --min-heap-pct 80
 ```
 
 ### Get detailed memory breakdown
 ```bash
-ibmi tool get_jvm_detail --tools skills/java/tools/ --wait-time 10
+ibmi tool get_jvm_detail --tools "$SKILL_DIR/tools/" --wait-time 10
 ```
 
 ### Find JVMs with high GC activity
 ```bash
-ibmi tool list_jvms_by_gc_activity --tools skills/java/tools/ --min-gc-cycles 100
+ibmi tool list_jvms_by_gc_activity --tools "$SKILL_DIR/tools/" --min-gc-cycles 100
 ```
 
 ## Pre-built Tools
@@ -84,9 +87,9 @@ The `tools/java.yaml` file provides 5 ready-to-use tools:
 | `get_jvm_properties` | JVM configuration and property counts |
 
 ```bash
-ibmi tool <tool_name> --tools skills/java/tools/          # Execute
-ibmi tool <tool_name> --tools skills/java/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/java/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

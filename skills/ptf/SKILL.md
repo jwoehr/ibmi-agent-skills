@@ -9,14 +9,17 @@ Monitor and analyze Program Temporary Fixes (PTFs), PTF groups, and patching sta
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing PTF queries:
+The `ibmi` CLI is the primary tool for executing PTF queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/ptf, ~/.claude/skills/ptf
+
 # List all PTF tools
-ibmi tools --tools skills/ptf/tools/ --toolset ptf_default
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset ptf_default
 
 # Run a specific tool
-ibmi tool check_ptf_currency --tools skills/ptf/tools/
+ibmi tool check_ptf_currency --tools "$SKILL_DIR/tools/"
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.GROUP_PTF_INFO WHERE PTF_GROUP_STATUS = 'INSTALLED'"
@@ -74,17 +77,17 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Check all PTF group currency
 ```bash
-ibmi tool check_ptf_currency --tools skills/ptf/tools/
+ibmi tool check_ptf_currency --tools "$SKILL_DIR/tools/"
 ```
 
 ### Find groups with updates available
 ```bash
-ibmi tool list_outdated_ptf_groups --tools skills/ptf/tools/
+ibmi tool list_outdated_ptf_groups --tools "$SKILL_DIR/tools/"
 ```
 
 ### List PTFs for a product
 ```bash
-ibmi tool list_individual_ptfs --tools skills/ptf/tools/ product_filter=5770SS1
+ibmi tool list_individual_ptfs --tools "$SKILL_DIR/tools/" product_filter=5770SS1
 ```
 
 ### PTF currency summary
@@ -123,9 +126,9 @@ The `tools/ptf.yaml` file provides 8 ready-to-use tools:
 | `check_defective_ptfs` | Check for IBM-identified defective PTFs |
 
 ```bash
-ibmi tool <tool_name> --tools skills/ptf/tools/          # Execute
-ibmi tool <tool_name> --tools skills/ptf/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/ptf/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

@@ -9,11 +9,14 @@ Manage and inspect journals, journal receivers, journaled objects, journal entri
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for journal queries:
+The `ibmi` CLI is the primary tool for journal queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/journal/tools/ --toolset journal_default
-ibmi tool list_journals --tools skills/journal/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/journal, ~/.claude/skills/journal
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset journal_default
+ibmi tool list_journals --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT JOURNAL_NAME, JOURNAL_LIBRARY, JOURNAL_TYPE FROM QSYS2.JOURNAL_INFO"
 ```
 
@@ -65,22 +68,22 @@ ibmi sql "SELECT JOURNAL_NAME, JOURNAL_LIBRARY, JOURNAL_TYPE FROM QSYS2.JOURNAL_
 
 ### List all journals
 ```bash
-ibmi tool list_journals --tools skills/journal/tools/
+ibmi tool list_journals --tools "$SKILL_DIR/tools/"
 ```
 
 ### List receivers for a specific journal
 ```bash
-ibmi tool list_journal_receiver_chain --tools skills/journal/tools/ --journal-library QSYS --journal-name QAUDJRN
+ibmi tool list_journal_receiver_chain --tools "$SKILL_DIR/tools/" --journal-library QSYS --journal-name QAUDJRN
 ```
 
 ### Read recent journal entries
 ```bash
-ibmi tool display_journal_entries --tools skills/journal/tools/ --journal-library QSYS --journal-name QAUDJRN --minutes-ago 30
+ibmi tool display_journal_entries --tools "$SKILL_DIR/tools/" --journal-library QSYS --journal-name QAUDJRN --minutes-ago 30
 ```
 
 ### Find largest receivers
 ```bash
-ibmi tool list_large_journal_receivers --tools skills/journal/tools/ --min-size-mb 100
+ibmi tool list_large_journal_receivers --tools "$SKILL_DIR/tools/" --min-size-mb 100
 ```
 
 ## Pre-built Tools
@@ -101,9 +104,9 @@ The `tools/journal.yaml` file provides 10 ready-to-use tools:
 | `get_audit_journal_data_mart_info` | Audit data mart build status |
 
 ```bash
-ibmi tool <tool_name> --tools skills/journal/tools/          # Execute
-ibmi tool <tool_name> --tools skills/journal/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/journal/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

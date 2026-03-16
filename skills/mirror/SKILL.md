@@ -9,11 +9,14 @@ Monitor Db2 Mirror replication, cluster topology, NRG communication, RDMA links,
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for mirror monitoring:
+The `ibmi` CLI is the primary tool for mirror monitoring. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/mirror/tools/ --toolset mirror_default
-ibmi tool list_mirror_status --tools skills/mirror/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/mirror, ~/.claude/skills/mirror
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset mirror_default
+ibmi tool list_mirror_status --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT IASP_NAME, REPLICATION_STATE FROM QSYS2.MIRROR_INFO"
 ```
 
@@ -81,22 +84,22 @@ ibmi sql "SELECT IASP_NAME, REPLICATION_STATE FROM QSYS2.MIRROR_INFO"
 
 ### Check replication status
 ```bash
-ibmi tool list_mirror_status --tools skills/mirror/tools/
+ibmi tool list_mirror_status --tools "$SKILL_DIR/tools/"
 ```
 
 ### View cluster topology
 ```bash
-ibmi tool list_mirror_cluster --tools skills/mirror/tools/
+ibmi tool list_mirror_cluster --tools "$SKILL_DIR/tools/"
 ```
 
 ### Check NRG link health
 ```bash
-ibmi tool list_nrg_links --tools skills/mirror/tools/
+ibmi tool list_nrg_links --tools "$SKILL_DIR/tools/"
 ```
 
 ### Review replication criteria
 ```bash
-ibmi tool list_replication_criteria --tools skills/mirror/tools/
+ibmi tool list_replication_criteria --tools "$SKILL_DIR/tools/"
 ```
 
 ## Pre-built Tools
@@ -119,9 +122,9 @@ The `tools/mirror.yaml` file provides 12 ready-to-use tools:
 | `get_mirror_objectconnect_info` | ObjectConnect state |
 
 ```bash
-ibmi tool <tool_name> --tools skills/mirror/tools/          # Execute
-ibmi tool <tool_name> --tools skills/mirror/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/mirror/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

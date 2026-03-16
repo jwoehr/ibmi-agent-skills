@@ -9,11 +9,14 @@ Assess security posture including user privileges, object authorities, vulnerabi
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing security queries:
+The `ibmi` CLI is the primary tool for executing security queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/security/tools/ --toolset security_default
-ibmi tool list_users_with_special_authorities --tools skills/security/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/security, ~/.claude/skills/security
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset security_default
+ibmi tool list_users_with_special_authorities --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT AUTHORIZATION_NAME, SPECIAL_AUTHORITIES FROM QSYS2.USER_INFO_BASIC WHERE SPECIAL_AUTHORITIES IS NOT NULL"
 ```
 
@@ -63,22 +66,22 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### Users with *ALLOBJ authority
 ```bash
-ibmi tool list_users_with_special_authorities --tools skills/security/tools/ --authority-filter '*ALLOBJ'
+ibmi tool list_users_with_special_authorities --tools "$SKILL_DIR/tools/" --authority-filter '*ALLOBJ'
 ```
 
 ### Profiles vulnerable to impersonation
 ```bash
-ibmi tool list_profiles_vulnerable_to_impersonation --tools skills/security/tools/
+ibmi tool list_profiles_vulnerable_to_impersonation --tools "$SKILL_DIR/tools/"
 ```
 
 ### Files exposed to trigger attack
 ```bash
-ibmi tool list_files_exposed_to_trigger_attack --tools skills/security/tools/
+ibmi tool list_files_exposed_to_trigger_attack --tools "$SKILL_DIR/tools/"
 ```
 
 ### Group profile members
 ```bash
-ibmi tool list_group_profile_members --tools skills/security/tools/ --group-filter QSECOFR
+ibmi tool list_group_profile_members --tools "$SKILL_DIR/tools/" --group-filter QSECOFR
 ```
 
 ## Pre-built Tools
@@ -101,9 +104,9 @@ The `tools/security.yaml` file provides 12 ready-to-use tools:
 | `list_authorization_list_users` | Users and their authorities on authorization lists |
 
 ```bash
-ibmi tool <tool_name> --tools skills/security/tools/          # Execute
-ibmi tool <tool_name> --tools skills/security/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/security/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

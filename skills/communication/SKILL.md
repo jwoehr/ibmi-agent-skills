@@ -9,11 +9,14 @@ Monitor and analyze network and communication resources on IBM i using SQL servi
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing network queries:
+The `ibmi` CLI is the primary tool for executing network queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/communication/tools/ --toolset communication_default
-ibmi tool get_netstat_info --tools skills/communication/tools/
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/communication, ~/.claude/skills/communication
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset communication_default
+ibmi tool get_netstat_info --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.NETSTAT_INFO WHERE TCP_STATE = 'ESTABLISHED' FETCH FIRST 20 ROWS ONLY"
 ```
 
@@ -128,9 +131,9 @@ The `tools/communication.yaml` file provides 8 ready-to-use tools:
 | `get_time_protocol_info` | NTP/SNTP time server status |
 
 ```bash
-ibmi tool <tool_name> --tools skills/communication/tools/          # Execute
-ibmi tool <tool_name> --tools skills/communication/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/communication/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

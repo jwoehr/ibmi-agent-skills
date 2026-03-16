@@ -9,14 +9,17 @@ Monitor and analyze storage resources on IBM i using SQL services from QSYS2.
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing storage queries:
+The `ibmi` CLI is the primary tool for executing storage queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/storage, ~/.claude/skills/storage
+
 # List all storage tools
-ibmi tools --tools skills/storage/tools/ --toolset storage_default
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset storage_default
 
 # Run a specific tool
-ibmi tool get_asp_info --tools skills/storage/tools/
+ibmi tool get_asp_info --tools "$SKILL_DIR/tools/"
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.ASP_INFO ORDER BY ASP_NUMBER"
@@ -135,9 +138,9 @@ The `tools/storage.yaml` file provides 9 ready-to-use tools:
 | `get_locking_policy_info` | NVMe locking policy status |
 
 ```bash
-ibmi tool <tool_name> --tools skills/storage/tools/          # Execute
-ibmi tool <tool_name> --tools skills/storage/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/storage/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

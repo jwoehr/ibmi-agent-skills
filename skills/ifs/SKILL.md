@@ -9,11 +9,14 @@ Browse, search, read, and inspect files in the IFS including authorities, locks,
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for IFS operations:
+The `ibmi` CLI is the primary tool for IFS operations. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
-ibmi tools --tools skills/ifs/tools/ --toolset ifs_default
-ibmi tool list_ifs_directory --tools skills/ifs/tools/ --path /home
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/ifs, ~/.claude/skills/ifs
+
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset ifs_default
+ibmi tool list_ifs_directory --tools "$SKILL_DIR/tools/" --path /home
 ibmi sql "SELECT PATH_NAME, DATA_SIZE FROM TABLE(QSYS2.IFS_OBJECT_STATISTICS(START_PATH_NAME => '/tmp', SUBTREE_DIRECTORIES => 'NO'))"
 ```
 
@@ -60,22 +63,22 @@ ibmi sql "SELECT PATH_NAME, DATA_SIZE FROM TABLE(QSYS2.IFS_OBJECT_STATISTICS(STA
 
 ### List root directory
 ```bash
-ibmi tool list_ifs_directory --tools skills/ifs/tools/ --path /
+ibmi tool list_ifs_directory --tools "$SKILL_DIR/tools/" --path /
 ```
 
 ### Search for log files
 ```bash
-ibmi tool search_ifs_by_name --tools skills/ifs/tools/ --path /home --name-pattern '%.log'
+ibmi tool search_ifs_by_name --tools "$SKILL_DIR/tools/" --path /home --name-pattern '%.log'
 ```
 
 ### Read a text file
 ```bash
-ibmi tool read_ifs_file --tools skills/ifs/tools/ --path /etc/hosts
+ibmi tool read_ifs_file --tools "$SKILL_DIR/tools/" --path /etc/hosts
 ```
 
 ### Check file authorities
 ```bash
-ibmi tool get_ifs_object_authorities --tools skills/ifs/tools/ --path /home/myuser
+ibmi tool get_ifs_object_authorities --tools "$SKILL_DIR/tools/" --path /home/myuser
 ```
 
 ## Pre-built Tools
@@ -94,9 +97,9 @@ The `tools/ifs.yaml` file provides 8 ready-to-use tools:
 | `list_server_shares` | NetServer file and print shares |
 
 ```bash
-ibmi tool <tool_name> --tools skills/ifs/tools/          # Execute
-ibmi tool <tool_name> --tools skills/ifs/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/ifs/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

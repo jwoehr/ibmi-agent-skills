@@ -9,14 +9,17 @@ Monitor system health including CPU, memory, disk, ASPs, system limits, and netw
 
 ## Available Tools
 
-The `ibmi` CLI is the primary tool for executing system health queries:
+The `ibmi` CLI is the primary tool for executing system health queries. Set `SKILL_DIR` to this skill's installed location (the directory containing this SKILL.md file):
 
 ```bash
+# SKILL_DIR = directory containing this SKILL.md
+# Examples: ./skills/system-health, ~/.claude/skills/system-health
+
 # List all system health tools
-ibmi tools --tools skills/system-health/tools/ --toolset system_health_default
+ibmi tools --tools "$SKILL_DIR/tools/" --toolset system_health_default
 
 # Run a specific tool
-ibmi tool get_system_status --tools skills/system-health/tools/
+ibmi tool get_system_status --tools "$SKILL_DIR/tools/"
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS => 'YES')) X"
@@ -87,17 +90,17 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### System status overview
 ```bash
-ibmi tool get_system_status --tools skills/system-health/tools/
+ibmi tool get_system_status --tools "$SKILL_DIR/tools/"
 ```
 
 ### Memory pool health
 ```bash
-ibmi tool get_memory_pools --tools skills/system-health/tools/
+ibmi tool get_memory_pools --tools "$SKILL_DIR/tools/"
 ```
 
 ### Find limits above 80% used
 ```bash
-ibmi tool get_system_limits --tools skills/system-health/tools/ pct_threshold=80
+ibmi tool get_system_limits --tools "$SKILL_DIR/tools/" pct_threshold=80
 ```
 
 ### ASP capacity check
@@ -133,9 +136,9 @@ The `tools/system-health.yaml` file provides 8 ready-to-use tools:
 | `count_remote_connections` | Count of remote connections excluding loopback |
 
 ```bash
-ibmi tool <tool_name> --tools skills/system-health/tools/          # Execute
-ibmi tool <tool_name> --tools skills/system-health/tools/ --dry-run # Preview SQL
-ibmi tools show <tool_name> --tools skills/system-health/tools/     # View details
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
+ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools "$SKILL_DIR/tools/"     # View details
 ```
 
 ## Reference Documentation

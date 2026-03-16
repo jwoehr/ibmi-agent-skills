@@ -1,6 +1,6 @@
 # IBM i Agent Skills
 
-Agent skills for AI coding assistants to work with IBM i systems. **23 skills** covering all IBM i SQL Service categories with **180 pre-built tools**.
+Agent skills for AI coding assistants to work with IBM i systems. **23 skills** covering all IBM i SQL Service categories with **212 pre-built tools**.
 
 ## What are Agent Skills?
 
@@ -104,19 +104,19 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 
 | Skill | Tools | Description |
 |-------|-------|-------------|
-| `work-management` | 8 | Jobs, subsystems, job queues, scheduled jobs, SQL activity |
+| `work-management` | 15 | Jobs, subsystems, locks, job queues, scheduled jobs, ended jobs, SQL activity |
 | `storage` | 9 | ASPs, disk units, temp storage, NVMe, user storage |
 | `backup-and-recovery` | 5 | Save files, media libraries, tape cartridges |
-| `communication` | 8 | Network connections, routing, HTTP servers, TCP/IP config |
-| `application` | 8 | Commands, data areas, data queues, programs, watches |
+| `communication` | 11 | Network connections, routing, HTTP servers, TCP/IP, DB connections, DNS |
+| `application` | 13 | Commands, data areas, data queues, programs, transactions, call stacks |
 
 ### Operations & Monitoring
 
 | Skill | Tools | Description |
 |-------|-------|-------------|
 | `spool` | 9 | Output queues, spooled files, spool consumers |
-| `ptf` | 8 | PTF currency, groups, defective PTFs |
-| `message-handling` | 7 | Message queues, history log, reply lists |
+| `ptf` | 11 | PTF currency, groups, firmware, cover letters, defective PTFs |
+| `message-handling` | 8 | Message queues, history log, reply lists, job logs |
 | `system-health` | 8 | System status, memory pools, disk, limits |
 | `performance` | 7 | Collection services, temp storage, I/O metrics |
 
@@ -126,14 +126,14 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 |-------|-------|-------------|
 | `database-utility` | 9 | File inventory, object stats, data validation |
 | `database-application` | 7 | SQL error logs, SQLCODE info, system limits |
-| `database-performance` | 7 | Indexes, MTI, monitors, MQTs, query supervisor |
+| `database-performance` | 8 | Indexes, MTI, monitors, MQTs, active queries |
 | `database-plan-cache` | 7 | Plan cache snapshots, events, procedures |
 
 ### Security & Infrastructure
 
 | Skill | Tools | Description |
 |-------|-------|-------------|
-| `security` | 10 | User privileges, authorities, vulnerability assessment |
+| `security` | 17 | User profiles, authorities, certificates, vulnerability assessment, auth lists |
 | `librarian` | 7 | Library lists, authorization lists, object privileges |
 | `configuration` | 7 | System values, hardware, JVM info |
 | `product` | 5 | Software products, licenses |
@@ -143,12 +143,12 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 | Skill | Tools | Description |
 |-------|-------|-------------|
 | `java` | 5 | JVM monitoring, heap/GC analysis |
-| `ifs` | 8 | IFS browsing, search, authorities, file reading |
+| `ifs` | 10 | IFS browsing, search, authorities, file reading, comparison |
 | `migrate-while-active` | 9 | Migration status, library/IFS tracking |
-| `journal` | 10 | Journals, receivers, journaled objects, audit |
+| `journal` | 13 | Journals, receivers, journaled objects, audit events |
 | `mirror` | 12 | Db2 Mirror status, replication, NRG, reclone |
 
-**Total: 23 skills, 180 tools**
+**Total: 23 skills, 212 tools**
 
 ## Managing Skills
 

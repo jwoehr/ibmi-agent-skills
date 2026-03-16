@@ -1,0 +1,283 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_index_statistics:
+    source: ibmi-system
+    description: "Get index statistics from QSYS2.SYSINDEXSTAT for a schema or specific table. Shows index name, key columns, size, usage counts, last build time, and maintenance mode. Use to evaluate index health and usage patterns."
+    parameters:
+      - name: schema_filter
+        type: string
+        description: "Schema (library) to filter indexes. Use '*ALL' for all schemas."
+        default: "*ALL"
+      - name: table_filter
+        type: string
+        description: "Table name to filter indexes for. Leave empty for all tables."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of indexes to return."
+        default: 100
+    statement: |
+      SELECT INDEX_SCHEMA, INDEX_NAME, TABLE_SCHEMA, TABLE_NAME,
+             INDEX_TEXT, INDEX_VALID,
+             NUMBER_KEY_COLUMNS, COLUMN_NAMES,
+             NUMBER_KEYS, INDEX_SIZE, NUMBER_PAGES,
+             QUERY_USE_COUNT, QUERY_STATISTICS_COUNT,
+             LAST_QUERY_USE, LAST_STATISTICS_USE,
+             LAST_BUILD_TIMESTAMP, LAST_BUILD_TIME, LAST_BUILD_TYPE,
+             MAINTENANCE, UNIQUE, SPARSE, DERIVED_KEY,
+             LAST_USED_TIMESTAMP, DAYS_USED_COUNT
+        FROM QSYS2.SYSINDEXSTAT
+        WHERE (:schema_filter = '*ALL' OR TABLE_SCHEMA = UPPER(:schema_filter))
+          AND (:table_filter = '' OR TABLE_NAME = UPPER(:table_filter))
+        ORDER BY QUERY_USE_COUNT DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "index-statistics"
+
+  get_unused_indexes:
+    source: ibmi-system
+    description: "Find indexes that have not been used by the query optimizer. Candidates for removal to reduce maintenance overhead. Shows indexes with zero query use count or that have not been used in a long time."
+    parameters:
+      - name: schema_filter
+        type: string
+        description: "Schema (library) to search. Use '*ALL' for all schemas."
+        default: "*ALL"
+      - name: unused_days
+        type: integer
+        description: "Number of days since last query use to consider unused."
+        default: 90
+      - name: limit
+        type: integer
+        description: "Maximum number of indexes to return."
+        default: 100
+    statement: |
+      SELECT INDEX_SCHEMA, INDEX_NAME, TABLE_SCHEMA, TABLE_NAME,
+             INDEX_TEXT, COLUMN_NAMES,
+             QUERY_USE_COUNT, LAST_QUERY_USE,
+             INDEX_SIZE, MAINTENANCE,
+             INDEX_CREATE_TIMESTAMP, LAST_USED_TIMESTAMP
+        FROM QSYS2.SYSINDEXSTAT
+        WHERE (:schema_filter = '*ALL' OR TABLE_SCHEMA = UPPER(:schema_filter))
+          AND INDEX_VALID = 'YES'
+          AND (QUERY_USE_COUNT = 0
+               OR LAST_QUERY_USE IS NULL
+               OR LAST_QUERY_USE < CURRENT_TIMESTAMP - :unused_days DAYS)
+        ORDER BY INDEX_SIZE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "index-statistics"
+
+  get_mti_info:
+    source: ibmi-system
+    description: "Return information about Maintained Temporary Indexes (MTIs) over a specific table using QSYS2.MTI_INFO. Shows index details including column names, usage counts, and sizes. Useful for understanding implicit indexing and evaluating whether permanent indexes should be created."
+    parameters:
+      - name: schema_name
+        type: string
+        description: "Schema (library) containing the table."
+        required: true
+      - name: table_name
+        type: string
+        description: "Table name to inspect for MTIs."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of MTI entries to return."
+        default: 50
+    statement: |
+      SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_PARTITION,
+             SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME,
+             MTI_STATUS, MTI_CREATED, MTI_LAST_QUERY_USE,
+             MTI_QUERY_USE_COUNT, MTI_SIZE,
+             MTI_KEY_COLUMNS_ESTIMATED, MTI_KEY_COLUMNS_COUNT
+        FROM TABLE(QSYS2.MTI_INFO(
+          UPPER(:schema_name), UPPER(:table_name)))
+        ORDER BY MTI_QUERY_USE_COUNT DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "mti-analysis"
+
+  get_database_monitor_info:
+    source: ibmi-system
+    description: "List active and inactive database monitors showing monitor ID, library, file, status, type, filters, and row counts. Use to check which database performance monitors are configured and running."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by monitor status (e.g., 'ACTIVE', 'INACTIVE'). Use '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of monitors to return."
+        default: 100
+    statement: |
+      SELECT MONITOR_ID, MONITOR_TYPE, MONITOR_STATUS,
+             MONITOR_RECORD_TYPE,
+             MONITOR_LIBRARY, MONITOR_FILE, MONITOR_MEMBER,
+             NUMBER_ROWS, DATA_SIZE,
+             MONITOR_JOB_FILTER, USER_FILTER,
+             INCLUDE_SYSTEM_SQL, HOST_VARIABLE
+        FROM QSYS2.DATABASE_MONITOR_INFO
+        WHERE (:status_filter = '*ALL' OR MONITOR_STATUS = UPPER(:status_filter))
+        ORDER BY MONITOR_STATUS, MONITOR_ID
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "database-monitors"
+
+  get_query_supervisor_thresholds:
+    source: ibmi-system
+    description: "List all Query Supervisor threshold rules showing threshold name, type, value, scope, and filters. Use to understand what performance guardrails are in place for query execution."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of threshold rules to return."
+        default: 100
+    statement: |
+      SELECT THRESHOLD_NAME, THRESHOLD_TYPE, THRESHOLD_VALUE,
+             DETECTION_FREQUENCY,
+             JOB_NAMES, INCLUDE_USERS, EXCLUDE_USERS, SUBSYSTEMS,
+             LONG_COMMENT
+        FROM QSYS2.QUERY_SUPERVISOR
+        ORDER BY THRESHOLD_TYPE, THRESHOLD_VALUE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "query-supervisor"
+
+  get_mqt_statistics:
+    source: ibmi-system
+    description: "Get statistics for Materialized Query Tables (MQTs) from QSYS2.SYSMQTSTAT. Shows MQT name, refresh status, query use counts, size, and maintenance settings. Use to monitor MQT health and effectiveness."
+    parameters:
+      - name: schema_filter
+        type: string
+        description: "Schema (library) to filter MQTs. Use '*ALL' for all schemas."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of MQTs to return."
+        default: 100
+    statement: |
+      SELECT MQT_SCHEMA, MQT_NAME, MQT_PARTITION,
+             MQT_OWNER, MQT_TEXT, ENABLED,
+             NUMBER_ROWS, MQT_SIZE,
+             QUERY_USE_COUNT, QUERY_STATISTICS_COUNT,
+             LAST_QUERY_USE, LAST_STATISTICS_USE,
+             REFRESH_TIME, MAINTENANCE, REFRESH, ISOLATION,
+             CREATE_TIMESTAMP, LAST_CHANGE_TIMESTAMP,
+             LAST_USED_TIMESTAMP, DAYS_USED_COUNT
+        FROM QSYS2.SYSMQTSTAT
+        WHERE (:schema_filter = '*ALL' OR MQT_SCHEMA = UPPER(:schema_filter))
+        ORDER BY QUERY_USE_COUNT DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "mqt-statistics"
+
+  get_tables_with_high_mti:
+    source: ibmi-system
+    description: "Find tables with large Maintained Temporary Index (MTI) sizes from QSYS2.SYSPARTITIONSTAT. Tables with significant MTI overhead are candidates for permanent index creation to improve performance."
+    parameters:
+      - name: schema_filter
+        type: string
+        description: "Schema (library) to filter. Use '*ALL' for all schemas."
+        default: "*ALL"
+      - name: min_mti_size
+        type: integer
+        description: "Minimum MTI size in bytes to include."
+        default: 1048576
+      - name: limit
+        type: integer
+        description: "Maximum number of tables to return."
+        default: 50
+    statement: |
+      SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_PARTITION,
+             NUMBER_ROWS, DATA_SIZE,
+             MAINTAINED_TEMPORARY_INDEX_SIZE,
+             NUMBER_DISTINCT_INDEXES,
+             LAST_USED_TIMESTAMP
+        FROM QSYS2.SYSPARTITIONSTAT
+        WHERE (:schema_filter = '*ALL' OR TABLE_SCHEMA = UPPER(:schema_filter))
+          AND MAINTAINED_TEMPORARY_INDEX_SIZE >= :min_mti_size
+        ORDER BY MAINTAINED_TEMPORARY_INDEX_SIZE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "mti-analysis"
+
+  get_active_queries:
+    source: ibmi-system
+    description: "List currently active SQL queries with execution details including job name, user, query type, runtime, row counts, temporary storage, and database reads. Useful for identifying expensive or long-running queries."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of active queries to return."
+        default: 50
+    statement: |
+      SELECT QUALIFIED_JOB_NAME, JOB_NAME, USER_NAME,
+             QUERY_TYPE, LIBRARY_NAME, FILE_NAME,
+             FULL_OPEN_TIMESTAMP, CURRENT_RUNTIME,
+             CURRENT_ROW_COUNT, CURRENT_TEMPORARY_STORAGE,
+             CURRENT_DATABASE_READS, CURRENT_PAGE_FAULTS,
+             MTI_COUNT, PSEUDO_CLOSED,
+             AVERAGE_RUNTIME, AVERAGE_ROW_COUNT
+        FROM TABLE(QSYS2.ACTIVE_QUERY_INFO())
+        ORDER BY CURRENT_RUNTIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-performance"
+      category: "active-queries"
+
+toolsets:
+  database_performance_default:
+    title: "Database Performance Tools"
+    description: "Read-only tools for index statistics, MTI analysis, database monitor info, query supervisor thresholds, MQT statistics, and identifying tables with high MTI overhead."
+    tools:
+      - get_index_statistics
+      - get_unused_indexes
+      - get_mti_info
+      - get_database_monitor_info
+      - get_query_supervisor_thresholds
+      - get_mqt_statistics
+      - get_tables_with_high_mti
+      - get_active_queries

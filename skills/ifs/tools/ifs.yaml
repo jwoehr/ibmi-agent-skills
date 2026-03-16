@@ -1,0 +1,298 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_ifs_directory:
+    source: ibmi-system
+    description: "List contents of an IFS directory including file type, size, owner, and timestamps. Does not recurse into subdirectories."
+    parameters:
+      - name: path
+        type: string
+        description: "IFS directory path to list (e.g., '/', '/home', '/QSYS.LIB')."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT PATH_NAME, OBJECT_TYPE, DATA_SIZE,
+             OBJECT_OWNER, CREATE_TIMESTAMP, LAST_USED_TIMESTAMP
+        FROM TABLE(QSYS2.IFS_OBJECT_STATISTICS(
+          START_PATH_NAME => :path,
+          SUBTREE_DIRECTORIES => 'NO'))
+        ORDER BY OBJECT_TYPE, PATH_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "browse"
+
+  get_ifs_object_info:
+    source: ibmi-system
+    description: "Get detailed information about a specific IFS object including size, ownership, timestamps, CCSID, journaling status, and authorization list."
+    parameters:
+      - name: path
+        type: string
+        description: "Full IFS path to the object (e.g., '/home/myuser/myfile.txt')."
+        required: true
+    statement: |
+      SELECT PATH_NAME, OBJECT_TYPE, DATA_SIZE, ALLOCATED_SIZE,
+             OBJECT_OWNER, CREATE_TIMESTAMP, ACCESS_TIMESTAMP,
+             DATA_CHANGE_TIMESTAMP, OBJECT_CHANGE_TIMESTAMP, LAST_USED_TIMESTAMP,
+             CCSID, AUTHORIZATION_LIST, JOURNALED, JOURNAL_NAME, JOURNAL_LIBRARY,
+             OBJECT_SIGNED, STORAGE_FREED
+        FROM TABLE(QSYS2.IFS_OBJECT_STATISTICS(
+          START_PATH_NAME => :path,
+          SUBTREE_DIRECTORIES => 'NO'))
+        WHERE PATH_NAME = :path
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "browse"
+
+  search_ifs_by_name:
+    source: ibmi-system
+    description: "Search for files in the IFS matching a name pattern, recursing into subdirectories. Uses SQL LIKE syntax for pattern matching."
+    parameters:
+      - name: path
+        type: string
+        description: "Starting IFS path to search from (e.g., '/home', '/tmp')."
+        required: true
+      - name: name_pattern
+        type: string
+        description: "Name pattern to search for using SQL LIKE syntax (e.g., '%.log', '%config%')."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return."
+        default: 100
+    statement: |
+      SELECT PATH_NAME, OBJECT_TYPE, DATA_SIZE, OBJECT_OWNER,
+             LAST_USED_TIMESTAMP
+        FROM TABLE(QSYS2.IFS_OBJECT_STATISTICS(
+          START_PATH_NAME => :path,
+          SUBTREE_DIRECTORIES => 'YES'))
+        WHERE PATH_NAME LIKE '%' CONCAT :name_pattern CONCAT '%'
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "search"
+
+  list_ifs_large_objects:
+    source: ibmi-system
+    description: "Find the largest objects in an IFS directory tree. Useful for identifying disk space consumers."
+    parameters:
+      - name: path
+        type: string
+        description: "Starting IFS path to search from."
+        required: true
+      - name: min_size_mb
+        type: integer
+        description: "Minimum size in megabytes to include. Use 0 for all objects."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return."
+        default: 50
+    statement: |
+      SELECT PATH_NAME, OBJECT_TYPE, DATA_SIZE, ALLOCATED_SIZE,
+             OBJECT_OWNER, LAST_USED_TIMESTAMP
+        FROM TABLE(QSYS2.IFS_OBJECT_STATISTICS(
+          START_PATH_NAME => :path,
+          SUBTREE_DIRECTORIES => 'YES'))
+        WHERE OBJECT_TYPE = '*STMF'
+          AND DATA_SIZE >= :min_size_mb * 1048576
+        ORDER BY DATA_SIZE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "search"
+
+  get_ifs_object_authorities:
+    source: ibmi-system
+    description: "Show authority settings for an IFS object including owner, primary group, and individual user authorities."
+    parameters:
+      - name: path
+        type: string
+        description: "Full IFS path to check authorities for."
+        required: true
+    statement: |
+      SELECT PATH_NAME, OBJECT_TYPE, AUTHORIZATION_NAME,
+             DATA_AUTHORITY, OBJECT_OPERATIONAL, OBJECT_MANAGEMENT,
+             OBJECT_EXISTENCE, OBJECT_ALTER, OBJECT_REFERENCE,
+             DATA_READ, DATA_ADD, DATA_UPDATE, DATA_DELETE, DATA_EXECUTE
+        FROM TABLE(QSYS2.IFS_OBJECT_PRIVILEGES(PATH_NAME => :path))
+        ORDER BY AUTHORIZATION_NAME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "security"
+
+  read_ifs_file:
+    source: ibmi-system
+    description: "Read the contents of a text file in the IFS. Returns line numbers and text lines. Use for viewing configuration files, logs, or other text content."
+    parameters:
+      - name: path
+        type: string
+        description: "Full IFS path to the text file to read."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of lines to return."
+        default: 200
+    statement: |
+      SELECT LINE_NUMBER, LINE
+        FROM TABLE(QSYS2.IFS_READ(
+          PATH_NAME => :path,
+          END_OF_LINE => 'ANY',
+          MAXIMUM_LINE_LENGTH => 1000))
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "read"
+
+  list_ifs_object_locks:
+    source: ibmi-system
+    description: "Show lock information for an IFS object including which jobs hold locks and the lock types. Useful for diagnosing file contention."
+    parameters:
+      - name: path
+        type: string
+        description: "Full IFS path to check locks for."
+        required: true
+    statement: |
+      SELECT PATH_NAME, JOB_NAME,
+             RO_COUNT, WO_COUNT, RW_COUNT, XO_COUNT,
+             SHARE_R_COUNT, SHARE_W_COUNT, SHARE_RW_COUNT, SHARE_NONE_COUNT,
+             ATTRIBUTE_LOCK, SAVE_LOCK, CHECKED_OUT, CHECKED_OUT_USER_NAME
+        FROM TABLE(QSYS2.IFS_OBJECT_LOCK_INFO(PATH_NAME => :path))
+        ORDER BY JOB_NAME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "locks"
+
+  list_server_shares:
+    source: ibmi-system
+    description: "List NetServer file and print shares configured on the system including path, permissions, and connection counts."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of shares to return."
+        default: 100
+    statement: |
+      SELECT SERVER_SHARE_NAME, SHARE_TYPE, TEXT_DESCRIPTION,
+             PATH_NAME, PERMISSIONS, ENCRYPTION_REQUIRED,
+             MAXIMUM_CONNECTIONS, CURRENT_CONNECTIONS
+        FROM QSYS2.SERVER_SHARE_INFO
+        ORDER BY SHARE_TYPE, SERVER_SHARE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "shares"
+
+  compare_ifs_objects:
+    source: ibmi-system
+    description: "Compare two IFS stream files and return their differences. Both paths must point to stream files (*STMF), not directories. Can be slow for large files."
+    parameters:
+      - name: path1
+        type: string
+        description: "Full IFS path to the first file (e.g., '/home/user/file1.txt')."
+        required: true
+      - name: path2
+        type: string
+        description: "Full IFS path to the second file (e.g., '/home/user/file2.txt')."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of difference lines to return."
+        default: 200
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.COMPARE_IFS(:path1, :path2))
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "compare"
+
+  list_ifs_job_info:
+    source: ibmi-system
+    description: "List IFS objects that a specific job has open. Shows file paths, lock counts, share modes, and reference counts. Use '*' for the current job."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name (e.g., '123456/QUSER/MYJOB') or '*' for the current job."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of IFS objects to return."
+        default: 100
+    statement: |
+      SELECT PATH_NAME, FILE_SYSTEM_TYPE,
+             REFERENCE_COUNT, CURRENT_DIRECTORY, ROOT_DIRECTORY,
+             RO_SHARE_R_COUNT, RO_SHARE_W_COUNT, RO_SHARE_RW_COUNT,
+             WO_SHARE_R_COUNT, WO_SHARE_W_COUNT, WO_SHARE_RW_COUNT,
+             RW_SHARE_R_COUNT, RW_SHARE_W_COUNT, RW_SHARE_RW_COUNT,
+             ATTRIBUTE_LOCK, SAVE_LOCK, LINK_CHANGES_LOCK
+        FROM TABLE(QSYS2.IFS_JOB_INFO(:job_name))
+        ORDER BY PATH_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "ifs"
+      category: "job-files"
+
+toolsets:
+  ifs_default:
+    title: "IFS Operations"
+    description: "Read-only tools for browsing, inspecting, searching, and reading files in the IBM i Integrated File System (IFS)."
+    tools:
+      - list_ifs_directory
+      - get_ifs_object_info
+      - search_ifs_by_name
+      - list_ifs_large_objects
+      - get_ifs_object_authorities
+      - read_ifs_file
+      - list_ifs_object_locks
+      - list_server_shares
+      - compare_ifs_objects
+      - list_ifs_job_info

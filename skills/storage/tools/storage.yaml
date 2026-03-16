@@ -1,0 +1,264 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_asp_info:
+    source: ibmi-system
+    description: "Show Auxiliary Storage Pool (ASP) information for the partition including capacity, usage percentage, and storage type. Use this to understand overall disk allocation and ASP health."
+    parameters:
+      - name: asp_number_filter
+        type: integer
+        description: "Filter by specific ASP number. Use 0 for all ASPs."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of ASP entries to return."
+        default: 100
+    statement: |
+      SELECT ASP_NUMBER, DEVICE_DESCRIPTION_NAME, ASP_STATE, ASP_TYPE,
+             TOTAL_CAPACITY, TOTAL_CAPACITY_AVAILABLE,
+             NUMBER_OF_DISK_UNITS,
+             PROTECTED_CAPACITY, UNPROTECTED_CAPACITY,
+             OVERFLOW_RECOVERY_RESULT
+        FROM QSYS2.ASP_INFO
+        WHERE :asp_number_filter = 0 OR ASP_NUMBER = :asp_number_filter
+        ORDER BY ASP_NUMBER
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "asp"
+
+  get_asp_job_info:
+    source: ibmi-system
+    description: "Show jobs currently active on an Independent ASP (IASP). Useful for determining what workload is running against a specific IASP before vary-off or maintenance."
+    parameters:
+      - name: iasp_name
+        type: string
+        description: "Name of the Independent ASP to query (e.g., 'IASP33'). Leave empty for all IASPs."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of job entries to return."
+        default: 100
+    statement: |
+      SELECT IASP_NUMBER, IASP_NAME, JOB_NAME, AUTHORIZATION_NAME,
+             JOB_STATUS, JOB_TYPE
+        FROM QSYS2.ASP_JOB_INFO
+        WHERE :iasp_name = '' OR IASP_NAME = UPPER(:iasp_name)
+        ORDER BY IASP_NAME, JOB_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "asp"
+
+  get_asp_vary_info:
+    source: ibmi-system
+    description: "Analyze vary-on and vary-off history for Independent ASPs. Shows operation timing, duration, and results — useful for tracking IASP availability and diagnosing slow vary operations."
+    parameters:
+      - name: iasp_name
+        type: string
+        description: "Filter by IASP name. Leave empty for all IASPs."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of vary operation records to return."
+        default: 100
+    statement: |
+      SELECT IASP_NAME, OPERATION_TYPE, OPERATION_NUMBER,
+             OPERATION_STATE, STEP, STEP_STATE,
+             START_TIMESTAMP, END_TIMESTAMP,
+             BIGINT(DURATION) AS DURATION_SECONDS
+        FROM QSYS2.ASP_VARY_INFO
+        WHERE :iasp_name = '' OR IASP_NAME = UPPER(:iasp_name)
+        ORDER BY START_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "asp"
+
+  get_disk_status:
+    source: ibmi-system
+    description: "Query storage device status from the SYSDISKSTAT view. Shows percent used, storage type (SSD vs DISK), capacity, and disk unit details. Good for a quick overview without resetting statistics."
+    parameters:
+      - name: asp_number_filter
+        type: integer
+        description: "Filter by ASP number. Use 0 for all ASPs."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of disk units to return."
+        default: 100
+    statement: |
+      SELECT PERCENT_USED,
+             CASE WHEN UNIT_TYPE = 1 THEN 'SSD' ELSE 'DISK' END AS STORAGE_TYPE,
+             ASP_NUMBER, UNIT_NUMBER, UNIT_TYPE,
+             UNIT_STORAGE_CAPACITY, UNIT_SPACE_AVAILABLE, RESOURCE_NAME
+        FROM QSYS2.SYSDISKSTAT
+        WHERE :asp_number_filter = 0 OR ASP_NUMBER = :asp_number_filter
+        ORDER BY PERCENT_USED DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "disk"
+
+  get_disk_status_detailed:
+    source: ibmi-system
+    description: "Return detailed disk statistics using the SYSDISKSTAT table function. Provides I/O counters and performance metrics. Uses RESET_STATISTICS=>'NO' to avoid clearing counters."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of disk units to return."
+        default: 100
+    statement: |
+      SELECT PERCENT_USED,
+             CASE WHEN UNIT_TYPE = 1 THEN 'SSD' ELSE 'DISK' END AS STORAGE_TYPE,
+             ASP_NUMBER, UNIT_NUMBER, UNIT_STORAGE_CAPACITY, UNIT_SPACE_AVAILABLE,
+             RESOURCE_NAME, TOTAL_READ_REQUESTS, TOTAL_WRITE_REQUESTS,
+             TOTAL_BLOCKS_READ, TOTAL_BLOCKS_WRITTEN,
+             ELAPSED_READ_REQUESTS, ELAPSED_WRITE_REQUESTS
+        FROM TABLE(QSYS2.SYSDISKSTAT(RESET_STATISTICS => 'NO'))
+        ORDER BY PERCENT_USED DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "disk"
+
+  get_temp_storage:
+    source: ibmi-system
+    description: "Analyze temporary storage usage by active jobs. Shows current and peak bucket sizes per job — critical for diagnosing runaway temp storage consumption."
+    parameters:
+      - name: job_name_filter
+        type: string
+        description: "Filter by job name (e.g., 'QZDASOINIT'). Leave empty for all jobs."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT JOB_NAME, JOB_USER_NAME, JOB_NUMBER, JOB_STATUS,
+             BUCKET_CURRENT_SIZE, BUCKET_PEAK_SIZE
+        FROM QSYS2.SYSTMPSTG
+        WHERE JOB_STATUS = '*ACTIVE'
+          AND (:job_name_filter = '' OR JOB_NAME = UPPER(:job_name_filter))
+        ORDER BY BUCKET_CURRENT_SIZE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "temp-storage"
+
+  get_user_storage:
+    source: ibmi-system
+    description: "Review storage consumption by user profile. Shows storage used per user and ASP — useful for identifying top consumers and enforcing storage limits."
+    parameters:
+      - name: user_filter
+        type: string
+        description: "Filter by user name. Leave empty for all users."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of user entries to return."
+        default: 100
+    statement: |
+      SELECT AUTHORIZATION_NAME, ASPGRP,
+             STORAGE_USED, MAXIMUM_STORAGE_ALLOWED
+        FROM QSYS2.USER_STORAGE
+        WHERE :user_filter = '' OR AUTHORIZATION_NAME = UPPER(:user_filter)
+        ORDER BY STORAGE_USED DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "user-storage"
+
+  get_nvme_info:
+    source: ibmi-system
+    description: "Return information about NVMe storage devices including firmware, capacity, temperature, and health status. Useful for hardware inventory and health monitoring."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of NVMe devices to return."
+        default: 100
+    statement: |
+      SELECT RESOURCE_NAME, SERIAL_NUMBER, FIRMWARE_LEVEL,
+             PAGES_AVAILABLE, PAGES_USED, PAGES_MAXIMUM,
+             COMPOSITE_TEMPERATURE,
+             LIFE_REMAINING, SPARE_CAPACITY
+        FROM QSYS2.NVME_INFO
+        ORDER BY RESOURCE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "nvme"
+
+  get_locking_policy_info:
+    source: ibmi-system
+    description: "List NVMe device locking policy status. Shows whether devices support locking, are eligible for a policy, and whether a policy is currently in effect."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of devices to return."
+        default: 100
+    statement: |
+      SELECT RESOURCE_NAME, LOCKING_SUPPORTED, ELIGIBLE_POLICY, UNDER_POLICY
+        FROM QSYS2.LOCKING_POLICY_INFO
+        ORDER BY RESOURCE_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "storage"
+      category: "nvme"
+
+toolsets:
+  storage_default:
+    title: "Storage Management"
+    description: "Read-only tools for querying ASP configuration, disk status, temporary storage, user storage consumption, and NVMe device information."
+    tools:
+      - get_asp_info
+      - get_asp_job_info
+      - get_asp_vary_info
+      - get_disk_status
+      - get_disk_status_detailed
+      - get_temp_storage
+      - get_user_storage
+      - get_nvme_info
+      - get_locking_policy_info

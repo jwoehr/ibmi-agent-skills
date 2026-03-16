@@ -1,0 +1,158 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_jvms:
+    source: ibmi-system
+    description: "List all active Java Virtual Machines on the system with memory usage, garbage collection stats, and thread counts. Ordered by GC time to highlight busy JVMs."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of JVMs to return."
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_NAME_SHORT, JOB_USER, START_TIME,
+             JAVA_THREAD_COUNT, TOTAL_GC_TIME, GC_CYCLE_NUMBER,
+             JAVA_HOME, INITIAL_HEAP_SIZE, CURRENT_HEAP_SIZE,
+             IN_USE_HEAP_SIZE, MAX_HEAP_SIZE, BIT_MODE
+        FROM QSYS2.JVM_INFO
+        ORDER BY TOTAL_GC_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "java"
+      category: "jvm"
+
+  get_jvm_detail:
+    source: ibmi-system
+    description: "Get detailed JVM information including malloc, internal, JIT, and shared class memory breakdown. Uses the TABLE FUNCTION variant with configurable wait time for data collection."
+    parameters:
+      - name: wait_time
+        type: integer
+        description: "Maximum seconds to wait for each JVM's data to be returned."
+        default: 10
+      - name: limit
+        type: integer
+        description: "Maximum number of JVMs to return."
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_NAME_SHORT, JOB_USER, START_TIME,
+             JAVA_THREAD_COUNT, TOTAL_GC_TIME, GC_CYCLE_NUMBER, GC_POLICY_NAME,
+             JAVA_HOME, USER_DIRECTORY,
+             INITIAL_HEAP_SIZE, CURRENT_HEAP_SIZE, IN_USE_HEAP_SIZE, MAX_HEAP_SIZE,
+             MALLOC_MEMORY_SIZE, INTERNAL_MEMORY_SIZE, JIT_MEMORY_SIZE,
+             SHARED_CLASS_SIZE, BIT_MODE
+        FROM TABLE(QSYS2.JVM_INFO(WAIT_TIME => :wait_time))
+        ORDER BY TOTAL_GC_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "java"
+      category: "jvm"
+
+  list_jvms_by_heap_usage:
+    source: ibmi-system
+    description: "Find JVMs with highest heap memory consumption. Shows current vs max heap and percentage used. Useful for identifying JVMs at risk of OutOfMemoryError."
+    parameters:
+      - name: min_heap_pct
+        type: integer
+        description: "Minimum heap usage percentage to filter (0-100). Use 0 for all JVMs."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of JVMs to return."
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_NAME_SHORT, JOB_USER, JAVA_HOME,
+             CURRENT_HEAP_SIZE, IN_USE_HEAP_SIZE, MAX_HEAP_SIZE,
+             CASE WHEN MAX_HEAP_SIZE > 0
+               THEN DECIMAL(DECIMAL(IN_USE_HEAP_SIZE, 15, 2) / DECIMAL(MAX_HEAP_SIZE, 15, 2) * 100, 5, 1)
+               ELSE 0 END AS HEAP_USED_PCT,
+             JAVA_THREAD_COUNT, TOTAL_GC_TIME, GC_CYCLE_NUMBER, BIT_MODE
+        FROM QSYS2.JVM_INFO
+        WHERE (:min_heap_pct = 0
+          OR (MAX_HEAP_SIZE > 0
+              AND DECIMAL(DECIMAL(IN_USE_HEAP_SIZE, 15, 2) / DECIMAL(MAX_HEAP_SIZE, 15, 2) * 100, 5, 1) >= :min_heap_pct))
+        ORDER BY IN_USE_HEAP_SIZE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "java"
+      category: "jvm"
+
+  list_jvms_by_gc_activity:
+    source: ibmi-system
+    description: "Find JVMs with highest garbage collection activity. High GC time or cycle counts may indicate memory pressure or inefficient heap sizing."
+    parameters:
+      - name: min_gc_cycles
+        type: integer
+        description: "Minimum GC cycle count to filter. Use 0 for all JVMs."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of JVMs to return."
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_NAME_SHORT, JOB_USER, JAVA_HOME,
+             TOTAL_GC_TIME, GC_CYCLE_NUMBER,
+             CURRENT_HEAP_SIZE, IN_USE_HEAP_SIZE, MAX_HEAP_SIZE,
+             JAVA_THREAD_COUNT, START_TIME, BIT_MODE
+        FROM QSYS2.JVM_INFO
+        WHERE GC_CYCLE_NUMBER >= :min_gc_cycles
+        ORDER BY TOTAL_GC_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "java"
+      category: "jvm"
+
+  get_jvm_properties:
+    source: ibmi-system
+    description: "Get the number of current properties set for each active JVM along with its Java home directory and user directory. Useful for understanding JVM configurations."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of JVMs to return."
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_NAME_SHORT, JOB_USER, JAVA_HOME,
+             USER_DIRECTORY, NUM_CURRENT_PROPERTIES,
+             INITIAL_HEAP_SIZE, MAX_HEAP_SIZE, BIT_MODE, START_TIME
+        FROM QSYS2.JVM_INFO
+        ORDER BY NUM_CURRENT_PROPERTIES DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "java"
+      category: "jvm"
+
+toolsets:
+  java_default:
+    title: "Java & JVM Monitoring"
+    description: "Read-only tools for monitoring Java Virtual Machines on IBM i including heap usage, garbage collection activity, and JVM configuration."
+    tools:
+      - list_jvms
+      - get_jvm_detail
+      - list_jvms_by_heap_usage
+      - list_jvms_by_gc_activity
+      - get_jvm_properties

@@ -1,0 +1,271 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_netstat_info:
+    source: ibmi-system
+    description: "List active network connections with bytes sent/received, local and remote addresses, ports, and connection state. Use this to monitor network traffic and identify the busiest connections."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of connections to return."
+        default: 100
+    statement: |
+      SELECT LOCAL_ADDRESS, LOCAL_PORT, REMOTE_ADDRESS, REMOTE_PORT,
+             BYTES_SENT_REMOTELY, BYTES_RECEIVED_LOCALLY,
+             TCP_STATE, CONNECTION_TYPE, BIND_USER
+        FROM QSYS2.NETSTAT_INFO
+        ORDER BY BYTES_SENT_REMOTELY + BYTES_RECEIVED_LOCALLY DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "network-connections"
+
+  get_netstat_interface_info:
+    source: ibmi-system
+    description: "List TCP/IP network interfaces with IP addresses, subnet masks, line descriptions, and interface status."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of interfaces to return."
+        default: 100
+    statement: |
+      SELECT INTERNET_ADDRESS, NETWORK_ADDRESS, SUBNET_MASK,
+             INTERFACE_LINE_TYPE, LINE_DESCRIPTION, INTERFACE_STATUS,
+             INTERFACE_TYPE, CONFIGURED_MAXIMUM_TRANSMISSION_UNIT
+        FROM QSYS2.NETSTAT_INTERFACE_INFO
+        ORDER BY INTERFACE_STATUS, INTERNET_ADDRESS
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "network-interfaces"
+
+  get_netstat_job_info:
+    source: ibmi-system
+    description: "List network jobs associated with TCP/IP connections, including job name, remote address, local port, connection type, authorization name, and job type."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of network job entries to return."
+        default: 100
+    statement: |
+      SELECT JOB_NAME, REMOTE_ADDRESS, REMOTE_PORT, LOCAL_PORT,
+             LOCAL_PORT_NAME, CONNECTION_TYPE, AUTHORIZATION_NAME,
+             JOB_TYPE
+        FROM QSYS2.NETSTAT_JOB_INFO
+        ORDER BY JOB_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "network-jobs"
+
+  get_netstat_route_info:
+    source: ibmi-system
+    description: "List TCP/IP routing table entries with route destination, subnet mask, next hop, route type, and precedence."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of routes to return."
+        default: 100
+    statement: |
+      SELECT ROUTE_DESTINATION, SUBNET_MASK, NEXT_HOP,
+             ROUTE_TYPE, ROUTE_PRECEDENCE, ROUTE_STATUS,
+             ROUTE_MAXIMUM_TRANSMISSION_UNIT, LOCAL_BINDING_LINE_TYPE
+        FROM QSYS2.NETSTAT_ROUTE_INFO
+        ORDER BY ROUTE_PRECEDENCE
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "network-routes"
+
+  get_http_server_info:
+    source: ibmi-system
+    description: "List HTTP server performance statistics including server name, job, active threads, total requests, bytes sent/received, and connection counts."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of HTTP servers to return."
+        default: 100
+    statement: |
+      SELECT SERVER_NAME, JOB_NAME, SERVER_ACTIVE_THREADS,
+             SERVER_IDLE_THREADS, SERVER_TOTAL_REQUESTS,
+             SERVER_NORMAL_CONNECTIONS, SERVER_SSL_CONNECTIONS,
+             BYTES_SENT, BYTES_RECEIVED
+        FROM QSYS2.HTTP_SERVER_INFO
+        ORDER BY SERVER_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "http-servers"
+
+  get_tcpip_info:
+    source: ibmi-system
+    description: "Retrieve TCP/IP stack configuration including local hostname, IBM i OS version, client and server IP addresses, and port numbers."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 10
+    statement: |
+      SELECT LOCAL_HOST_NAME, HOST_VERSION,
+             CLIENT_IP_ADDRESS, SERVER_IP_ADDRESS,
+             CLIENT_PORT_NUMBER, SERVER_PORT_NUMBER
+        FROM QSYS2.TCPIP_INFO
+        ORDER BY LOCAL_HOST_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "tcp-configuration"
+
+  get_network_attribute_info:
+    source: ibmi-system
+    description: "Retrieve system network attributes including system name, default local domain, DNS configuration, DDNS settings, and network authentication parameters."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of rows to return."
+        default: 10
+    statement: |
+      SELECT *
+        FROM QSYS2.NETWORK_ATTRIBUTE_INFO
+        ORDER BY 1
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "network-attributes"
+
+  get_time_protocol_info:
+    source: ibmi-system
+    description: "List registered time protocol (NTP/SNTP) servers with server address and preferred indicator."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of time servers to return."
+        default: 100
+    statement: |
+      SELECT TIME_SERVER, PREFERRED_INDICATOR
+        FROM QSYS2.TIME_PROTOCOL_INFO
+        ORDER BY TIME_SERVER
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "time-protocol"
+
+  list_active_db_connections:
+    source: ibmi-system
+    description: "List active database connections to the system or from the system to remote databases. Shows connection details including server name, job, user, and connection type."
+    parameters:
+      - name: server_filter
+        type: string
+        description: "Server name filter or '*ALL' for all connections."
+        default: "*ALL"
+    statement: |
+      SELECT *
+        FROM TABLE(QSYS2.ACTIVE_DB_CONNECTIONS(:server_filter))
+        FETCH FIRST 100 ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "database-connections"
+
+  get_rdb_entry_info:
+    source: ibmi-system
+    description: "List relational database directory entries showing remote database names, locations, connection types, and authentication settings."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of RDB entries to return."
+        default: 100
+    statement: |
+      SELECT RDB_NAME, RDB_ALIAS, REMOTE_LOCATION_TYPE,
+             REMOTE_LOCATION, TEXT_DESCRIPTION,
+             REMOTE_PORT_OR_SERVICE, PREFERRED_AUTHENTICATION,
+             ENCRYPTION_ALGORITHM, SECURE_CONNECTION,
+             LOCAL_LOCATION, REMOTE_NETWORK_ID
+        FROM QSYS2.RDB_ENTRY_INFO
+        ORDER BY RDB_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "rdb-directory"
+
+  dns_lookup:
+    source: ibmi-system
+    description: "Perform a DNS lookup for a hostname. Returns IP addresses, address type (IPv4/IPv6), and whether the result is authoritative."
+    parameters:
+      - name: hostname
+        type: string
+        description: "Hostname to resolve (e.g., 'google.com', 'myserver.example.com')."
+        required: true
+    statement: |
+      SELECT ADDRESS_SPACE_TYPE, IP_ADDRESS,
+             AUTHORITATIVE, AUTHENTICATED_DATA
+        FROM TABLE(QSYS2.DNS_LOOKUP(:hostname))
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "communication"
+      category: "dns"
+
+toolsets:
+  communication_default:
+    title: "Communication & Network Services"
+    description: "Read-only tools for querying network connections, interfaces, routing, HTTP servers, and TCP/IP configuration."
+    tools:
+      - get_netstat_info
+      - get_netstat_interface_info
+      - get_netstat_job_info
+      - get_netstat_route_info
+      - get_http_server_info
+      - get_tcpip_info
+      - get_network_attribute_info
+      - get_time_protocol_info
+      - list_active_db_connections
+      - get_rdb_entry_info
+      - dns_lookup

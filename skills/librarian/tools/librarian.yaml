@@ -1,0 +1,209 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  get_library_list:
+    source: ibmi-system
+    description: "Get the complete library list for the current job showing system, product, current, and user library list entries with ordinal positions."
+    parameters: []
+    statement: |
+      SELECT ORDINAL_POSITION, SCHEMA_NAME, SYSTEM_SCHEMA_NAME,
+             TYPE, TEXT_DESCRIPTION
+        FROM QSYS2.LIBRARY_LIST_INFO
+        ORDER BY ORDINAL_POSITION
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "librarian"
+      category: "library-list"
+
+  get_library_list_by_type:
+    source: ibmi-system
+    description: "Get library list entries filtered by type: SYSTEM, PRODUCT, CURRENT, or USER."
+    parameters:
+      - name: list_type
+        type: string
+        description: "Library list type to filter (SYSTEM, PRODUCT, CURRENT, USER)."
+        required: true
+    statement: |
+      SELECT ORDINAL_POSITION, SCHEMA_NAME, SYSTEM_SCHEMA_NAME,
+             TYPE, TEXT_DESCRIPTION
+        FROM QSYS2.LIBRARY_LIST_INFO
+        WHERE TYPE = UPPER(:list_type)
+        ORDER BY ORDINAL_POSITION
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "librarian"
+      category: "library-list"
+
+  get_library_info:
+    source: ibmi-system
+    description: "Get detailed information about a specific library or libraries matching a pattern, including size, object count, type, and creation date."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library name or pattern (e.g., 'QGPL', 'MY%'). Uses LIKE matching."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of libraries to return."
+        default: 50
+    statement: |
+      SELECT OBJNAME, OBJOWNER, OBJTYPE, OBJATTRIBUTE,
+             OBJSIZE, OBJCREATED, OBJDEFINER, LAST_USED_TIMESTAMP,
+             OBJTEXT
+        FROM TABLE(QSYS2.OBJECT_STATISTICS('QSYS', '*LIB', :library_name))
+        ORDER BY OBJNAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "librarian"
+      category: "library-info"
+
+  list_library_objects:
+    source: ibmi-system
+    description: "List objects in a specific library with optional type filter. Shows object name, type, attribute, size, and description."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library to list objects from (e.g., 'QGPL')."
+        required: true
+      - name: object_type
+        type: string
+        description: "Object type filter (e.g., '*PGM', '*FILE', '*ALL')."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of objects to return."
+        default: 100
+    statement: |
+      SELECT OBJNAME, OBJTYPE, OBJATTRIBUTE, OBJOWNER,
+             OBJSIZE, OBJCREATED, LAST_USED_TIMESTAMP,
+             OBJTEXT
+        FROM TABLE(QSYS2.OBJECT_STATISTICS(:library_name, :object_type))
+        ORDER BY OBJNAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "librarian"
+      category: "library-info"
+
+  list_authorization_lists:
+    source: ibmi-system
+    description: "List all authorization lists on the system showing the secured objects, their schemas, types, and owners."
+    parameters:
+      - name: autl_filter
+        type: string
+        description: "Authorization list name to filter or '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 200
+    statement: |
+      SELECT AUTHORIZATION_LIST, SYSTEM_OBJECT_SCHEMA,
+             SYSTEM_OBJECT_NAME, SYSTEM_OBJECT_TYPE,
+             OBJECT_ATTRIBUTE, OBJECT_OWNER, TEXT_DESCRIPTION
+        FROM QSYS2.AUTHORIZATION_LIST_INFO
+        WHERE (:autl_filter = '*ALL' OR AUTHORIZATION_LIST = :autl_filter)
+        ORDER BY AUTHORIZATION_LIST, SYSTEM_OBJECT_SCHEMA, SYSTEM_OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "librarian"
+      category: "authorization-list"
+
+  list_authorization_list_users:
+    source: ibmi-system
+    description: "List users and their authorities on authorization lists. Shows who has what level of access to each authorization list."
+    parameters:
+      - name: autl_filter
+        type: string
+        description: "Authorization list name to filter or '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 200
+    statement: |
+      SELECT AUTHORIZATION_LIST, AUTHORIZATION_NAME, OBJECT_AUTHORITY,
+             AUTHORIZATION_LIST_MANAGEMENT, OWNER,
+             OBJECT_OPERATIONAL, OBJECT_MANAGEMENT, OBJECT_EXISTENCE,
+             DATA_READ, DATA_ADD, DATA_UPDATE, DATA_DELETE, DATA_EXECUTE
+        FROM QSYS2.AUTHORIZATION_LIST_USER_INFO
+        WHERE (:autl_filter = '*ALL' OR AUTHORIZATION_LIST = :autl_filter)
+        ORDER BY AUTHORIZATION_LIST, AUTHORIZATION_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "librarian"
+      category: "authorization-list"
+
+  get_object_privileges:
+    source: ibmi-system
+    description: "Get privilege details for a specific object, showing all users and their authority levels."
+    parameters:
+      - name: object_schema
+        type: string
+        description: "Schema/library containing the object (e.g., 'QSYS', 'MYLIB')."
+        required: true
+      - name: object_name
+        type: string
+        description: "Name of the object to check privileges for."
+        required: true
+      - name: object_type
+        type: string
+        description: "Object type (e.g., '*LIB', '*FILE', '*PGM')."
+        default: "*LIB"
+    statement: |
+      SELECT AUTHORIZATION_NAME, OBJECT_AUTHORITY, OWNER,
+             OBJECT_OPERATIONAL, OBJECT_MANAGEMENT, OBJECT_EXISTENCE,
+             OBJECT_ALTER, OBJECT_REFERENCE,
+             DATA_READ, DATA_ADD, DATA_UPDATE, DATA_DELETE, DATA_EXECUTE
+        FROM QSYS2.OBJECT_PRIVILEGES
+        WHERE SYSTEM_OBJECT_SCHEMA = :object_schema
+          AND SYSTEM_OBJECT_NAME = :object_name
+          AND OBJECT_TYPE = :object_type
+        ORDER BY AUTHORIZATION_NAME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "librarian"
+      category: "object-authority"
+
+toolsets:
+  librarian_default:
+    title: "Library & Object Management"
+    description: "Read-only tools for querying library lists, library contents, authorization lists, and object privileges on IBM i."
+    tools:
+      - get_library_list
+      - get_library_list_by_type
+      - get_library_info
+      - list_library_objects
+      - list_authorization_lists
+      - list_authorization_list_users
+      - get_object_privileges

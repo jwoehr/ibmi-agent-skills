@@ -1,0 +1,62 @@
+{
+  "name": "ibmi-agent-skills",
+  "description": "23 agent skills for IBM i SQL Services — full coverage of work management, database, security, storage, communication, and system administration via QSYS2 and SYSTOOLS services.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Adam Shedivy",
+    "email": "ajshedivy@gmail.com"
+  },
+  "homepage": "https://github.com/ajshedivy/ibmi-agent-skills",
+  "repository": "https://github.com/ajshedivy/ibmi-agent-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "ibm-i",
+    "db2",
+    "sql-services",
+    "qsys2",
+    "as400",
+    "iseries",
+    "database",
+    "system-administration"
+  ],
+  "skills": [
+    "./skills/application",
+    "./skills/backup-and-recovery",
+    "./skills/communication",
+    "./skills/configuration",
+    "./skills/database-application",
+    "./skills/database-performance",
+    "./skills/database-plan-cache",
+    "./skills/database-utility",
+    "./skills/ifs",
+    "./skills/java",
+    "./skills/journal",
+    "./skills/librarian",
+    "./skills/message-handling",
+    "./skills/migrate-while-active",
+    "./skills/mirror",
+    "./skills/performance",
+    "./skills/product",
+    "./skills/ptf",
+    "./skills/security",
+    "./skills/spool",
+    "./skills/storage",
+    "./skills/system-health",
+    "./skills/work-management"
+  ],
+  "mcpServers": {
+    "ibmi-mcp-server": {
+      "command": "npx",
+      "args": ["-y", "@ibm/ibmi-mcp-server@latest"],
+      "env": {
+        "NODE_OPTIONS": "--no-deprecation",
+        "DB2i_HOST": "",
+        "DB2i_USER": "",
+        "DB2i_PASS": "",
+        "DB2i_PORT": "8076",
+        "MCP_TRANSPORT_TYPE": "stdio",
+        "IBMI_ENABLE_EXECUTE_SQL": "true"
+      }
+    }
+  }
+}

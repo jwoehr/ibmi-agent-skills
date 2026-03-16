@@ -1,0 +1,425 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_active_jobs:
+    source: ibmi-system
+    description: "List active jobs with CPU usage, status, and thread counts. Optionally filter by subsystem name."
+    parameters:
+      - name: subsystem
+        type: string
+        description: "Subsystem name to filter by (e.g., 'QBATCH', 'QINTER'). Leave empty for all subsystems."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of jobs to return"
+        default: 50
+    statement: |
+      SELECT JOB_NAME, JOB_TYPE, JOB_STATUS, SUBSYSTEM, FUNCTION, CPU_TIME,
+             TEMPORARY_STORAGE, THREAD_COUNT, RUN_PRIORITY
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO(
+        SUBSYSTEM_LIST_FILTER => NULLIF(:subsystem, '')
+      ))
+      ORDER BY CPU_TIME DESC
+      FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "active-jobs"
+
+  get_job_info:
+    source: ibmi-system
+    description: "Get detailed information about a specific job by its qualified job name (number/user/name)."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'number/user/name' (e.g., '123456/QUSER/MYJOB')"
+        required: true
+    statement: |
+      SELECT * FROM TABLE(QSYS2.GET_JOB_INFO(:job_name))
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-detail"
+
+  list_scheduled_jobs:
+    source: ibmi-system
+    description: "List all scheduled jobs with their schedule dates, times, frequency, and status."
+    parameters: []
+    statement: |
+      SELECT SCHEDULED_JOB_NAME, SCHEDULED_DATE, SCHEDULED_TIME, STATUS,
+             FREQUENCY, RELATIVE_DAYS_OF_MONTH, DESCRIPTION
+      FROM QSYS2.SCHEDULED_JOB_INFO
+      ORDER BY SCHEDULED_DATE, SCHEDULED_TIME
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "scheduled-jobs"
+
+  list_subsystems:
+    source: ibmi-system
+    description: "List active subsystems with aggregated job counts, CPU time, temporary storage, and thread totals."
+    parameters: []
+    statement: |
+      SELECT SUBSYSTEM, COUNT(*) AS JOB_COUNT,
+             SUM(CPU_TIME) AS TOTAL_CPU_TIME,
+             SUM(TEMPORARY_STORAGE) AS TOTAL_TEMP_STORAGE,
+             SUM(THREAD_COUNT) AS TOTAL_THREADS
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO(DETAILED_INFO => 'ALL'))
+      WHERE SUBSYSTEM IS NOT NULL
+      GROUP BY SUBSYSTEM
+      ORDER BY TOTAL_CPU_TIME DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "subsystems"
+
+  list_job_queues:
+    source: ibmi-system
+    description: "List job queues with their status, job counts, and active/held/released job breakdowns."
+    parameters: []
+    statement: |
+      SELECT JOB_QUEUE_NAME, JOB_QUEUE_LIBRARY, SUBSYSTEM_NAME,
+             NUMBER_OF_JOBS, STATUS, MAXIMUM_ACTIVE_JOBS,
+             ACTIVE_JOBS, HELD_JOBS, RELEASED_JOBS
+      FROM QSYS2.JOB_QUEUE_INFO
+      ORDER BY NUMBER_OF_JOBS DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-queues"
+
+  get_job_log_entries:
+    source: ibmi-system
+    description: "Retrieve recent job log entries for a specific job, ordered by most recent first."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'number/user/name' (e.g., '123456/QUSER/MYJOB')"
+        required: true
+    statement: |
+      SELECT MESSAGE_ID, MESSAGE_TYPE, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT,
+             FROM_PROGRAM, FROM_MODULE, MESSAGE_TIMESTAMP
+      FROM TABLE(QSYS2.JOBLOG_INFO(:job_name))
+      ORDER BY MESSAGE_TIMESTAMP DESC
+      FETCH FIRST 50 ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-logs"
+
+  find_long_running_sql:
+    source: ibmi-system
+    description: "Find active SQL statements that have been running the longest. Useful for identifying stuck or expensive queries."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return."
+        default: 20
+    statement: |
+      SELECT JOB_NAME, AUTHORIZATION_NAME,
+             TIMESTAMPDIFF(2, CAST(CURRENT_TIMESTAMP - SQL_STATEMENT_START_TIMESTAMP AS CHAR(22))) AS ELAPSED_SECONDS,
+             SQL_STATEMENT_TEXT, SUBSYSTEM
+      FROM TABLE(QSYS2.ACTIVE_JOB_INFO(DETAILED_INFO => 'ALL'))
+      WHERE SQL_STATEMENT_STATUS = 'ACTIVE'
+      ORDER BY ELAPSED_SECONDS DESC
+      FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "sql-activity"
+
+  find_jobs_by_user:
+    source: ibmi-system
+    description: "Find all jobs for a specific user across all statuses (active, queued, completed with output)."
+    parameters:
+      - name: user_name
+        type: string
+        description: "User profile name to search for."
+        required: true
+      - name: status_filter
+        type: string
+        description: "Job status filter: '*ALL', '*ACTIVE', '*JOBQ', '*OUTQ'."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of jobs to return."
+        default: 100
+    statement: |
+      SELECT JOB_NAME, JOB_TYPE, JOB_STATUS, SUBSYSTEM,
+             JOB_ENTERED_SYSTEM_TIME, JOB_ACTIVE_TIME
+      FROM TABLE(QSYS2.JOB_INFO(
+        JOB_USER_FILTER => UPPER(:user_name),
+        JOB_STATUS_FILTER => :status_filter
+      ))
+      ORDER BY JOB_ENTERED_SYSTEM_TIME DESC
+      FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-search"
+
+  list_subsystem_info:
+    source: ibmi-system
+    description: "List subsystem configuration details including status, maximum/current active jobs, monitor job, and controlling subsystem indicator."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by subsystem status (e.g., 'ACTIVE', 'INACTIVE'). Leave empty for all."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of subsystems to return."
+        default: 100
+    statement: |
+      SELECT SUBSYSTEM_DESCRIPTION_LIBRARY, SUBSYSTEM_DESCRIPTION, STATUS,
+             MAXIMUM_ACTIVE_JOBS, CURRENT_ACTIVE_JOBS, SUBSYSTEM_MONITOR_JOB,
+             CONTROLLING_SUBSYSTEM, WORKLOAD_GROUP, SIGNON_DEVICE_FILE_LIBRARY,
+             SIGNON_DEVICE_FILE, TEXT_DESCRIPTION
+        FROM QSYS2.SUBSYSTEM_INFO
+        WHERE :status_filter = '' OR STATUS = UPPER(:status_filter)
+        ORDER BY SUBSYSTEM_DESCRIPTION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "subsystems"
+
+  get_object_lock_info:
+    source: ibmi-system
+    description: "List locks held on a specific object. Shows lock state, status, scope, job name, and program details. Useful for diagnosing object contention."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library containing the object."
+        required: true
+      - name: object_name
+        type: string
+        description: "Name of the object to check locks for."
+        required: true
+      - name: object_type
+        type: string
+        description: "Object type filter (e.g., '*FILE', '*PGM', '*LIB'). Leave empty for all types."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of lock entries to return."
+        default: 100
+    statement: |
+      SELECT SYSTEM_OBJECT_SCHEMA, SYSTEM_OBJECT_NAME, OBJECT_TYPE,
+             SYSTEM_TABLE_MEMBER, MEMBER_LOCK_TYPE, LOCK_STATE,
+             LOCK_STATUS, LOCK_SCOPE, JOB_NAME, THREAD_ID,
+             LOCK_COUNT, PROGRAM_LIBRARY_NAME, PROGRAM_NAME
+        FROM QSYS2.OBJECT_LOCK_INFO
+        WHERE SYSTEM_OBJECT_SCHEMA = UPPER(:library_name)
+          AND SYSTEM_OBJECT_NAME = UPPER(:object_name)
+          AND (:object_type = '' OR OBJECT_TYPE = UPPER(:object_type))
+        ORDER BY LOCK_STATE, JOB_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "locks"
+
+  get_record_lock_info:
+    source: ibmi-system
+    description: "List record-level locks on a database file. Shows which jobs hold locks on specific records, including lock state and relative record number."
+    parameters:
+      - name: library_name
+        type: string
+        description: "Library containing the file."
+        required: true
+      - name: file_name
+        type: string
+        description: "Name of the database file."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of lock entries to return."
+        default: 100
+    statement: |
+      SELECT SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME, SYSTEM_TABLE_MEMBER,
+             RELATIVE_RECORD_NUMBER, LOCK_STATE, LOCK_STATUS,
+             LOCK_SCOPE, JOB_NAME, THREAD_ID
+        FROM QSYS2.RECORD_LOCK_INFO
+        WHERE SYSTEM_TABLE_SCHEMA = UPPER(:library_name)
+          AND SYSTEM_TABLE_NAME = UPPER(:file_name)
+        ORDER BY RELATIVE_RECORD_NUMBER, JOB_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "locks"
+
+  get_job_lock_info:
+    source: ibmi-system
+    description: "List all locks held by a specific job. Shows object names, lock states, and lock counts. Use '*' for the current job."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name (e.g., '123456/QUSER/MYJOB') or '*' for current job."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of lock entries to return."
+        default: 100
+    statement: |
+      SELECT OBJECT_LIBRARY, OBJECT_NAME, OBJECT_TYPE,
+             LOCK_STATE, LOCK_STATUS, LOCK_SCOPE, LOCK_COUNT,
+             MEMBER_NAME, MEMBER_LOCK_TYPE, ASP_NAME
+        FROM TABLE(QSYS2.JOB_LOCK_INFO(:job_name))
+        ORDER BY OBJECT_LIBRARY, OBJECT_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "locks"
+
+  list_ended_jobs:
+    source: ibmi-system
+    description: "List recently ended jobs with CPU time, end code, and completion details. Useful for investigating job failures and performance history."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of ended jobs to return."
+        default: 50
+    statement: |
+      SELECT FROM_JOB AS JOB_NAME, FROM_USER, JOB_TYPE,
+             CPU_TIME, JOB_END_CODE, JOB_END_DETAIL,
+             SECONDARY_ENDING_CODE, SECONDARY_ENDING_CODE_DETAIL,
+             JOB_ENTERED_SYSTEM_TIME, JOB_ACTIVE_TIME, MESSAGE_TIMESTAMP,
+             SUBSYSTEM, PEAK_TEMPORARY_STORAGE
+        FROM TABLE(SYSTOOLS.ENDED_JOB_INFO())
+        ORDER BY MESSAGE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "ended-jobs"
+
+  list_job_descriptions:
+    source: ibmi-system
+    description: "List job descriptions showing user, job queue, library list, routing data, and logging settings. Optionally filter by library."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library to filter by, or '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of job descriptions to return."
+        default: 100
+    statement: |
+      SELECT JOB_DESCRIPTION_LIBRARY, JOB_DESCRIPTION, AUTHORIZATION_NAME,
+             JOB_QUEUE_LIBRARY, JOB_QUEUE, JOB_QUEUE_PRIORITY,
+             ROUTING_DATA, LIBRARY_LIST_COUNT, LOG_CL_PROGRAM_COMMANDS,
+             MESSAGE_LOGGING_LEVEL, MESSAGE_LOGGING_SEVERITY,
+             ALLOW_MULTIPLE_THREADS, TEXT_DESCRIPTION
+        FROM QSYS2.JOB_DESCRIPTION_INFO
+        WHERE (:library_filter = '*ALL' OR JOB_DESCRIPTION_LIBRARY = UPPER(:library_filter))
+        ORDER BY JOB_DESCRIPTION_LIBRARY, JOB_DESCRIPTION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "job-descriptions"
+
+  list_autostart_jobs:
+    source: ibmi-system
+    description: "List autostart job entries configured in subsystem descriptions. Shows which jobs automatically start when a subsystem is activated."
+    parameters:
+      - name: subsystem_filter
+        type: string
+        description: "Subsystem description name to filter by. Leave empty for all subsystems."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of autostart job entries to return."
+        default: 100
+    statement: |
+      SELECT SUBSYSTEM_DESCRIPTION_LIBRARY, SUBSYSTEM_DESCRIPTION,
+             AUTOSTART_JOB_NAME, JOB_DESCRIPTION_LIBRARY, JOB_DESCRIPTION
+        FROM QSYS2.AUTOSTART_JOB_INFO
+        WHERE :subsystem_filter = '' OR SUBSYSTEM_DESCRIPTION = UPPER(:subsystem_filter)
+        ORDER BY SUBSYSTEM_DESCRIPTION_LIBRARY, SUBSYSTEM_DESCRIPTION, AUTOSTART_JOB_NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "work-management"
+      category: "autostart-jobs"
+
+toolsets:
+  work_management_default:
+    title: "Work Management Tools"
+    description: "Tools for monitoring and inspecting IBM i jobs, subsystems, job queues, job logs, SQL activity, and scheduled jobs."
+    tools:
+      - list_active_jobs
+      - get_job_info
+      - list_scheduled_jobs
+      - list_subsystems
+      - list_job_queues
+      - get_job_log_entries
+      - find_long_running_sql
+      - find_jobs_by_user
+      - list_subsystem_info
+      - list_ended_jobs
+      - list_job_descriptions
+      - list_autostart_jobs
+
+  work_management_locks:
+    title: "Work Management - Lock Analysis"
+    description: "Tools for analyzing object, record, and job locks."
+    tools:
+      - get_object_lock_info
+      - get_record_lock_info
+      - get_job_lock_info

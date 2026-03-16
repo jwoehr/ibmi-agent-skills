@@ -1,0 +1,264 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  read_message_queue:
+    source: ibmi-system
+    description: "Read messages from a message queue with message text, severity, sender, and timestamps. Defaults to the system operator message queue (QSYSOPR)."
+    parameters:
+      - name: queue_name
+        type: string
+        description: "Message queue name (e.g., 'QSYSOPR', 'QPGMR')"
+        default: "QSYSOPR"
+      - name: queue_library
+        type: string
+        description: "Library containing the message queue"
+        default: "QSYS"
+      - name: limit
+        type: integer
+        description: "Maximum number of messages to return"
+        default: 50
+    statement: |
+      SELECT MESSAGE_ID, MESSAGE_TYPE, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT,
+             SEVERITY, FROM_USER, FROM_JOB, MESSAGE_TIMESTAMP
+        FROM QSYS2.MESSAGE_QUEUE_INFO
+        WHERE MESSAGE_QUEUE_NAME = UPPER(:queue_name)
+          AND MESSAGE_QUEUE_LIBRARY = UPPER(:queue_library)
+        ORDER BY MESSAGE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "message-queues"
+
+  read_high_severity_messages:
+    source: ibmi-system
+    description: "Read messages from a message queue filtered by minimum severity level. Useful for finding important or error messages."
+    parameters:
+      - name: queue_name
+        type: string
+        description: "Message queue name (e.g., 'QSYSOPR', 'QPGMR')"
+        default: "QSYSOPR"
+      - name: queue_library
+        type: string
+        description: "Library containing the message queue"
+        default: "QSYS"
+      - name: severity_min
+        type: integer
+        description: "Minimum message severity to include (0-99, e.g., 30 for warnings, 40 for errors)"
+        default: 30
+      - name: limit
+        type: integer
+        description: "Maximum number of messages to return"
+        default: 50
+    statement: |
+      SELECT MESSAGE_ID, MESSAGE_TYPE, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT,
+             SEVERITY, FROM_USER, FROM_JOB, MESSAGE_TIMESTAMP
+        FROM QSYS2.MESSAGE_QUEUE_INFO
+        WHERE MESSAGE_QUEUE_NAME = UPPER(:queue_name)
+          AND MESSAGE_QUEUE_LIBRARY = UPPER(:queue_library)
+          AND SEVERITY >= :severity_min
+        ORDER BY MESSAGE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "message-queues"
+
+  get_history_log:
+    source: ibmi-system
+    description: "Retrieve system history log (QHST) entries filtered by minimum severity level. Shows system-wide messages with timestamps, job names, and programs."
+    parameters:
+      - name: severity_min
+        type: integer
+        description: "Minimum message severity to include (0-99)"
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return"
+        default: 100
+    statement: |
+      SELECT MESSAGE_ID, MESSAGE_TYPE, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT,
+             SEVERITY, FROM_USER, FROM_JOB, FROM_PROGRAM, MESSAGE_TIMESTAMP
+        FROM TABLE(QSYS2.HISTORY_LOG_INFO())
+        WHERE SEVERITY >= :severity_min
+        ORDER BY MESSAGE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "history-log"
+
+  search_history_log:
+    source: ibmi-system
+    description: "Search the system history log by message ID or message text content."
+    parameters:
+      - name: search_term
+        type: string
+        description: "Search term to match against message ID or message text"
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return"
+        default: 100
+    statement: |
+      SELECT MESSAGE_ID, MESSAGE_TYPE, MESSAGE_TEXT, SEVERITY,
+             FROM_USER, FROM_JOB, MESSAGE_TIMESTAMP
+        FROM TABLE(QSYS2.HISTORY_LOG_INFO())
+        WHERE MESSAGE_ID LIKE '%' CONCAT :search_term CONCAT '%'
+           OR UPPER(MESSAGE_TEXT) LIKE '%' CONCAT UPPER(:search_term) CONCAT '%'
+        ORDER BY MESSAGE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "history-log"
+
+  get_reply_list:
+    source: ibmi-system
+    description: "View the system reply list entries that control automatic message replies. Shows sequence number, message ID, reply value, and comparison data."
+    parameters: []
+    statement: |
+      SELECT SEQUENCE_NUMBER, MESSAGE_ID, MESSAGE_REPLY,
+             COMPARISON_DATA, COMPARISON_DATA_OFFSET, DUMP_JOB
+        FROM QSYS2.REPLY_LIST_INFO
+        ORDER BY SEQUENCE_NUMBER
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "reply-list"
+
+  search_message_file:
+    source: ibmi-system
+    description: "Search for message definitions in a message file by message ID or text. Shows the message template, severity, and reply configuration."
+    parameters:
+      - name: message_file
+        type: string
+        description: "Message file name (e.g., 'QCPFMSG', 'QRPGMSG')"
+        default: "QCPFMSG"
+      - name: message_file_library
+        type: string
+        description: "Library containing the message file"
+        default: "QSYS"
+      - name: message_id_filter
+        type: string
+        description: "Message ID or prefix to search for (e.g., 'CPF', 'MCH', 'SQL0204'). Use '*ALL' for all."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return"
+        default: 50
+    statement: |
+      SELECT MESSAGE_ID, MESSAGE_TEXT, SEVERITY,
+             REPLY_TYPE, DEFAULT_REPLY, CCSID
+        FROM QSYS2.MESSAGE_FILE_DATA
+        WHERE MESSAGE_FILE = UPPER(:message_file)
+          AND MESSAGE_FILE_LIBRARY = UPPER(:message_file_library)
+          AND (:message_id_filter = '*ALL' OR MESSAGE_ID LIKE :message_id_filter CONCAT '%')
+        ORDER BY MESSAGE_ID
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "message-files"
+
+  count_messages_by_severity:
+    source: ibmi-system
+    description: "Count messages in a message queue grouped by severity level. Provides a quick overview of message severity distribution."
+    parameters:
+      - name: queue_name
+        type: string
+        description: "Message queue name (e.g., 'QSYSOPR', 'QPGMR')"
+        default: "QSYSOPR"
+      - name: queue_library
+        type: string
+        description: "Library containing the message queue"
+        default: "QSYS"
+    statement: |
+      SELECT SEVERITY,
+             COUNT(*) AS MESSAGE_COUNT,
+             MIN(MESSAGE_TIMESTAMP) AS EARLIEST,
+             MAX(MESSAGE_TIMESTAMP) AS LATEST
+        FROM QSYS2.MESSAGE_QUEUE_INFO
+        WHERE MESSAGE_QUEUE_NAME = UPPER(:queue_name)
+          AND MESSAGE_QUEUE_LIBRARY = UPPER(:queue_library)
+        GROUP BY SEVERITY
+        ORDER BY SEVERITY DESC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "message-queues"
+
+  get_joblog_info:
+    source: ibmi-system
+    description: "Retrieve job log messages for a specific job or the current job. Shows message ID, type, severity, text, sending program, and timestamps. Use '*' for the current job's log."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'NUMBER/USER/NAME' (e.g., '012345/QUSER/MYJOB'). Use '*' for the current job."
+        default: "*"
+      - name: severity_min
+        type: integer
+        description: "Minimum message severity to include (0-99). Use 0 for all messages."
+        default: 0
+      - name: limit
+        type: integer
+        description: "Maximum number of job log messages to return."
+        default: 100
+    statement: |
+      SELECT ORDINAL_POSITION, MESSAGE_ID, MESSAGE_TYPE, MESSAGE_SUBTYPE,
+             SEVERITY, MESSAGE_TIMESTAMP, FROM_LIBRARY, FROM_PROGRAM,
+             FROM_MODULE, FROM_PROCEDURE, FROM_USER,
+             TO_PROGRAM, TO_MODULE, TO_PROCEDURE,
+             MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT
+        FROM TABLE(QSYS2.JOBLOG_INFO(:job_name))
+        WHERE SEVERITY >= :severity_min
+        ORDER BY ORDINAL_POSITION DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "message-handling"
+      category: "job-log"
+
+toolsets:
+  message_handling_default:
+    title: "Message Handling Tools"
+    description: "Tools for reading message queues, searching the history log, viewing reply lists, and looking up message definitions."
+    tools:
+      - read_message_queue
+      - read_high_severity_messages
+      - get_history_log
+      - search_history_log
+      - get_reply_list
+      - search_message_file
+      - count_messages_by_severity
+      - get_joblog_info

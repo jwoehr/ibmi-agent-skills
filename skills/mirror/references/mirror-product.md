@@ -1,0 +1,35 @@
+# MIRROR-PRODUCT Services
+
+Services for managing the core Db2 Mirror product configuration, cluster topology, health monitoring, and takeover groups.
+
+## Read-Only Views
+
+### MIRROR_INFO
+Replication state per IASP including node roles, NRG state, and configuration options.
+- Key columns: IASP_NAME, REPLICATION_STATE, PRIMARY_NODE, SECONDARY_NODE, NRG_STATE, AUTO_RESUME, AUTO_TAKEOVER
+
+### MIRROR_CLUSTER_INFO
+Cluster topology with node names and IP addresses.
+- Key columns: CLUSTER_NAME, DEVICE_DOMAIN_NAME, PRIMARY_NODE_NAME, PRIMARY_NODE_PRIMARY_IP, SECONDARY_NODE_NAME, SECONDARY_NODE_PRIMARY_IP
+
+### MIRROR_HEALTH_MONITOR_INFO
+Health monitor configuration per IASP.
+- Key columns: IASP_NAME, AVAILABLE_STORAGE_THRESHOLD, SUSPEND_WAIT_TIME, CRITICAL_RESOURCE_CHECK_INTERVAL, RESOURCE_CHECK_INTERVAL
+
+### MIRROR_TAKEOVER_INFO
+Takeover IP address groups showing current placement.
+- Key columns: GROUP_NAME, LOCAL_ADDRESS, PREFERRED_NODE, CURRENT_NODE, AUTO_SWITCHBACK
+
+### MIRROR_VERSION_LIST
+Version entries for tracking compatibility between nodes.
+- Key columns: ENTRY_NUMBER, STATE, VERSION_GROUP, VERSION_NAME, ACTIVE_VERSION, PRIMARY_VERSION, SECONDARY_VERSION
+
+### MIRROR_OBJECTCONNECT_INFO
+ObjectConnect subsystem configuration.
+- Key columns: STATE, AUTO_START, MINIMUM_JOBS, MAXIMUM_JOBS, INACTIVE_TIME
+
+## Procedures (not used by read-only tools)
+- SETUP_MIRROR, TERMINATE_MIRROR, SWAP_MIRROR_ROLES
+- CHANGE_MIRROR, CHANGE_MIRROR_HEALTH_MONITOR
+- ADD_MIRROR_IASP, REMOVE_MIRROR_IASP
+- CREATE_MIRROR_TAKEOVER_GROUP, DELETE_MIRROR_TAKEOVER_GROUP

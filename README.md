@@ -1,40 +1,63 @@
 # IBM i Agent Skills
-Agent skills for AI coding assistants to work with IBM i systems.
+
+Agent skills for AI coding assistants to work with IBM i systems. **23 skills** covering all IBM i SQL Service categories with **212 pre-built tools**.
 
 ## What are Agent Skills?
 
-Agents are increasingly capable, but often don’t have the context they need to do real work reliably. Skills solve this by giving agents access to procedural knowledge and **company**, **team**, and **user-specific context** they can load on demand. Agents with access to a set of skills can extend their capabilities based on the task they’re working on.
+Agents are increasingly capable, but often don't have the context they need to do real work reliably. Skills solve this by giving agents access to procedural knowledge and **company**, **team**, and **user-specific context** they can load on demand. Agents with access to a set of skills can extend their capabilities based on the task they're working on.
 
-## Creating a Basic Skill
+## Installation
 
-Skills are simple to create - just a folder with a `SKILL.md` file containing YAML frontmatter and instructions. You can use the **template-skill** in this repository as a starting point:
+### Option 1: Claude Code Plugin Marketplace
 
-```markdown
----
-name: my-skill-name
-description: A clear description of what this skill does and when to use it
----
+Add the marketplace and install the plugin directly in Claude Code:
 
-# My Skill Name
-
-[Add your instructions here that the Agent will follow when this skill is active]
-
-## Examples
-- Example usage 1
-- Example usage 2
-
-## Guidelines
-- Guideline 1
-- Guideline 2
+```
+/plugin marketplace add ajshedivy/ibmi-agent-skills
+/plugin install ibmi-sql-services@ibmi-agent-skills
 ```
 
-The frontmatter requires only two fields:
-- `name` - A unique identifier for your skill (lowercase, hyphens for spaces)
-- `description` - A complete description of what the skill does and when to use it
+This installs all 23 skills and configures the `ibmi-mcp-server` automatically.
 
-The markdown content below contains the instructions, examples, and guidelines that the Agent will follow.
+### Option 2: npx skills (Multi-Agent)
 
-[**Agent Skills Documentation**](https://agentskills.io/home)
+Install skills using [`npx skills`](https://github.com/vercel-labs/agent-skills). Works with Claude Code, Cursor, GitHub Copilot, and 40+ other agents.
+
+```bash
+# Install from GitHub
+npx skills add ajshedivy/ibmi-agent-skills
+
+# Or clone and install locally
+git clone https://github.com/ajshedivy/ibmi-agent-skills.git
+cd ibmi-agent-skills
+npx skills add ./skills --list           # List available skills
+npx skills add ./skills                  # Install all skills
+npx skills add ./skills/work-management  # Install a specific skill
+```
+
+#### Options
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | Install to user directory instead of project |
+| `-a, --agent <agents...>` | Target specific agents (e.g., `claude-code`, `cursor`) |
+| `-s, --skill <skills...>` | Install specific skills by name |
+| `-l, --list` | List available skills without installing |
+| `-y, --yes` | Skip all confirmation prompts |
+| `--all` | Install all skills to all agents without prompts |
+
+#### Examples
+
+```bash
+# Install to Claude Code only
+npx skills add ./skills -a claude-code
+
+# Install globally (available across all projects)
+npx skills add ./skills -g
+
+# Non-interactive installation
+npx skills add ./skills -g -a claude-code -y --all
+```
 
 ## Prerequisites
 
@@ -44,9 +67,7 @@ The [`ibmi-mcp-server`](https://github.com/IBM/ibmi-mcp-server) must be connecte
 
 ### Setting up the MCP Server
 
-Add the following configuration to your agent's MCP settings file:
-
-**Claude Code project scoped MCP server** (`./ibmi-agent-skills/.mcp.json`):
+Add the following to your agent's MCP settings (`.mcp.json` for Claude Code):
 
 ```json
 {
@@ -68,71 +89,66 @@ Add the following configuration to your agent's MCP settings file:
 }
 ```
 
-Replace the environment variables with your IBM i connection details:
-- `DB2i_HOST` - Your IBM i hostname or IP address
-- `DB2i_USER` - Your IBM i user profile
-- `DB2i_PASS` - Your IBM i password
-- `DB2i_PORT` - Mapepire port (default: `8076`)
+### IBM i CLI (Optional)
 
-For more configuration options, see the [ibmi-mcp-server documentation](https://github.com/IBM/ibmi-mcp-server).
+The [`ibmi` CLI](https://github.com/ajshedivy/ibmi-cli) provides direct tool execution:
+
+```bash
+ibmi tool list_active_jobs --tools skills/work-management/tools/
+ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
+```
 
 ## Available Skills
 
-| Skill | Description |
-|-------|-------------|
-| `work-management` | Query, monitor, and analyze jobs on IBM i using SQL table functions `QSYS2.JOB_INFO` and `QSYS2.ACTIVE_JOB_INFO` |
+### Core System
 
-## Installation
+| Skill | Tools | Description |
+|-------|-------|-------------|
+| `work-management` | 15 | Jobs, subsystems, locks, job queues, scheduled jobs, ended jobs, SQL activity |
+| `storage` | 9 | ASPs, disk units, temp storage, NVMe, user storage |
+| `backup-and-recovery` | 5 | Save files, media libraries, tape cartridges |
+| `communication` | 11 | Network connections, routing, HTTP servers, TCP/IP, DB connections, DNS |
+| `application` | 13 | Commands, data areas, data queues, programs, transactions, call stacks |
 
-Install skills using [`npx skills`](https://github.com/vercel-labs/agent-skills).
+### Operations & Monitoring
 
-### Clone and Install
+| Skill | Tools | Description |
+|-------|-------|-------------|
+| `spool` | 9 | Output queues, spooled files, spool consumers |
+| `ptf` | 11 | PTF currency, groups, firmware, cover letters, defective PTFs |
+| `message-handling` | 8 | Message queues, history log, reply lists, job logs |
+| `system-health` | 8 | System status, memory pools, disk, limits |
+| `performance` | 7 | Collection services, temp storage, I/O metrics |
 
-```bash
-# Clone the repository
-git clone https://github.com/ajshedivy/ibmi-agent-skills.git
-cd ibmi-agent-skills
+### Database
 
-# List available skills
-npx skills add ./skills --list
+| Skill | Tools | Description |
+|-------|-------|-------------|
+| `database-utility` | 9 | File inventory, object stats, data validation |
+| `database-application` | 7 | SQL error logs, SQLCODE info, system limits |
+| `database-performance` | 8 | Indexes, MTI, monitors, MQTs, active queries |
+| `database-plan-cache` | 7 | Plan cache snapshots, events, procedures |
 
-# Install a specific skill
-npx skills add ./skills/work-management
-```
+### Security & Infrastructure
 
-### Options
+| Skill | Tools | Description |
+|-------|-------|-------------|
+| `security` | 17 | User profiles, authorities, certificates, vulnerability assessment, auth lists |
+| `librarian` | 7 | Library lists, authorization lists, object privileges |
+| `configuration` | 7 | System values, hardware, JVM info |
+| `product` | 5 | Software products, licenses |
 
-| Option | Description |
-|--------|-------------|
-| `-g, --global` | Install to user directory instead of project |
-| `-a, --agent <agents...>` | Target specific agents (e.g., `claude-code`, `cursor`) |
-| `-s, --skill <skills...>` | Install specific skills by name |
-| `-l, --list` | List available skills without installing |
-| `-y, --yes` | Skip all confirmation prompts |
-| `--all` | Install all skills to all agents without prompts |
+### Specialized
 
-### Examples
+| Skill | Tools | Description |
+|-------|-------|-------------|
+| `java` | 5 | JVM monitoring, heap/GC analysis |
+| `ifs` | 10 | IFS browsing, search, authorities, file reading, comparison |
+| `migrate-while-active` | 9 | Migration status, library/IFS tracking |
+| `journal` | 13 | Journals, receivers, journaled objects, audit events |
+| `mirror` | 12 | Db2 Mirror status, replication, NRG, reclone |
 
-```bash
-# Install to Claude Code only
-npx skills add ./skills/work-management -a claude-code
-
-# Install globally (available across all projects)
-npx skills add ./skills/work-management -g
-
-# Non-interactive installation
-npx skills add ./skills/work-management -g -a claude-code -y
-
-# Install all skills to all agents
-npx skills add ./skills --all
-```
-
-### Installation Scope
-
-| Scope | Flag | Location | Use Case |
-|-------|------|----------|----------|
-| Project | (default) | `./<agent>/skills/` | Committed with your project, shared with team |
-| Global | `-g` | `~/<agent>/skills/` | Available across all projects |
+**Total: 23 skills, 212 tools**
 
 ## Managing Skills
 
@@ -150,4 +166,23 @@ npx skills update
 npx skills remove work-management
 ```
 
+## Creating a Basic Skill
 
+Skills are simple to create — just a folder with a `SKILL.md` file containing YAML frontmatter and instructions:
+
+```markdown
+---
+name: my-skill-name
+description: A clear description of what this skill does and when to use it
+---
+
+# My Skill Name
+
+[Instructions that the Agent will follow when this skill is active]
+```
+
+See the [skill-creator](./skills/skill-creator/) skill for detailed guidance and the [Agent Skills Documentation](https://agentskills.io/home) for the full specification.
+
+## License
+
+Apache-2.0

@@ -1,0 +1,220 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_sql_error_log:
+    source: ibmi-system
+    description: "Query the SQL error log from QSYS2.SQL_ERROR_LOG. Shows SQL errors recorded by the system including SQLCODE, SQLSTATE, program name, statement text, occurrence count, and timestamp. Use this to investigate application SQL failures and recurring error patterns."
+    parameters:
+      - name: program_library
+        type: string
+        description: "Filter by program library name. Leave empty for all libraries."
+        default: ""
+      - name: program_name
+        type: string
+        description: "Filter by program name. Leave empty for all programs."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of error log entries to return."
+        default: 100
+    statement: |
+      SELECT LOGGED_SQLCODE, LOGGED_SQLSTATE,
+             PROGRAM_LIBRARY, PROGRAM_NAME, PROGRAM_TYPE,
+             STATEMENT_OPERATION_DETAIL,
+             NUMBER_OCCURRENCES, REASON_CODE,
+             LOGGED_TIME, JOB_NAME, USER_NAME,
+             CAST(STATEMENT_TEXT AS VARCHAR(500)) AS STATEMENT_TEXT
+        FROM QSYS2.SQL_ERROR_LOG
+        WHERE (:program_library = '' OR PROGRAM_LIBRARY = UPPER(:program_library))
+          AND (:program_name = '' OR PROGRAM_NAME = UPPER(:program_name))
+        ORDER BY LOGGED_TIME DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-application"
+      category: "error-log"
+
+  get_sql_error_summary:
+    source: ibmi-system
+    description: "Get a summary of SQL errors grouped by SQLCODE showing total occurrences and the most recent timestamp. Useful for identifying the most frequent SQL errors across the system."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Maximum number of error groups to return."
+        default: 50
+    statement: |
+      SELECT LOGGED_SQLCODE, LOGGED_SQLSTATE,
+             SUM(NUMBER_OCCURRENCES) AS TOTAL_OCCURRENCES,
+             MAX(LOGGED_TIME) AS LAST_OCCURRENCE,
+             MIN(INITIAL_LOGGED_TIME) AS FIRST_OCCURRENCE,
+             COUNT(*) AS DISTINCT_PROGRAMS
+        FROM QSYS2.SQL_ERROR_LOG
+        GROUP BY LOGGED_SQLCODE, LOGGED_SQLSTATE
+        ORDER BY TOTAL_OCCURRENCES DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-application"
+      category: "error-log"
+
+  parse_sql_statement:
+    source: ibmi-system
+    description: "Parse a SQL statement to extract referenced tables, views, and other objects using QSYS2.PARSE_STATEMENT. Returns the schema, name, and type of each object referenced in the SQL text. Useful for static analysis of SQL embedded in programs."
+    parameters:
+      - name: sql_statement
+        type: string
+        description: "The SQL statement text to parse."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of parsed objects to return."
+        default: 100
+    statement: |
+      SELECT NAME_TYPE, NAME, SCHEMA, RDB,
+             COLUMN_NAME, ADDITIONAL_NAME,
+             USAGE_TYPE, SQL_STATEMENT_TYPE
+        FROM TABLE(QSYS2.PARSE_STATEMENT(
+          SQL_STATEMENT => :sql_statement))
+        ORDER BY SCHEMA, NAME
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-application"
+      category: "sql-analysis"
+
+  get_sqlcode_info:
+    source: ibmi-system
+    description: "Look up the message information for a given SQLCODE using SYSTOOLS.SQLCODE_INFO. Returns the message ID, message text, and detailed help text for the SQL return code. Essential for diagnosing SQL errors."
+    parameters:
+      - name: sqlcode
+        type: integer
+        description: "The SQLCODE value to look up (e.g., -204, -811, 100)."
+        required: true
+    statement: |
+      SELECT :sqlcode AS SQLCODE,
+             MESSAGE_ID, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT
+        FROM TABLE(SYSTOOLS.SQLCODE_INFO(:sqlcode))
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-application"
+      category: "sqlcode-reference"
+
+  delimit_name:
+    source: ibmi-system
+    description: "Properly delimit a SQL identifier using QSYS2.DELIMIT_NAME. Takes a name and returns it quoted/delimited only if necessary (e.g., when it contains special characters or is a reserved word). Useful for generating safe dynamic SQL."
+    parameters:
+      - name: name_value
+        type: string
+        description: "The SQL name/identifier to delimit."
+        required: true
+    statement: |
+      SELECT :name_value AS ORIGINAL_NAME,
+             QSYS2.DELIMIT_NAME(:name_value) AS DELIMITED_NAME
+        FROM SYSIBM.SYSDUMMY1
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-application"
+      category: "sql-utilities"
+
+  get_system_limits:
+    source: ibmi-system
+    description: "Query QSYS2.SYSLIMITS to find objects or jobs approaching system-defined size or capacity limits. Shows current value, maximum value, and the associated object or job. Use this to proactively detect limits before they cause failures."
+    parameters:
+      - name: limit_category
+        type: string
+        description: "Filter by limit category (e.g., 'FILE', 'INDEX', 'JOURNAL', 'MEMBER'). Leave empty for all."
+        default: ""
+      - name: schema_filter
+        type: string
+        description: "Filter by schema name. Leave empty for all."
+        default: ""
+      - name: limit
+        type: integer
+        description: "Maximum number of limit entries to return."
+        default: 100
+    statement: |
+      SELECT LIMIT_CATEGORY, LIMIT_TYPE, SIZING_NAME,
+             SCHEMA_NAME, OBJECT_NAME, SYSTEM_SCHEMA_NAME, SYSTEM_OBJECT_NAME,
+             CURRENT_VALUE, MAXIMUM_VALUE,
+             LAST_CHANGE_TIMESTAMP, COMMENTS,
+             USER_NAME, JOB_NAME
+        FROM QSYS2.SYSLIMITS
+        WHERE (:limit_category = '' OR LIMIT_CATEGORY = UPPER(:limit_category))
+          AND (:schema_filter = '' OR SCHEMA_NAME = UPPER(:schema_filter))
+        ORDER BY CURRENT_VALUE DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-application"
+      category: "system-limits"
+
+  get_system_limits_near_max:
+    source: ibmi-system
+    description: "Find objects or jobs that are approaching their system limits (current value is more than 50% of maximum). Proactive monitoring tool to prevent capacity-related failures."
+    parameters:
+      - name: threshold_pct
+        type: integer
+        description: "Percentage threshold (0-100). Returns items where current/max exceeds this value."
+        default: 50
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return."
+        default: 100
+    statement: |
+      SELECT LIMIT_CATEGORY, LIMIT_TYPE, SIZING_NAME,
+             SCHEMA_NAME, OBJECT_NAME,
+             CURRENT_VALUE, MAXIMUM_VALUE,
+             CASE WHEN MAXIMUM_VALUE > 0
+               THEN INTEGER(CURRENT_VALUE * 100 / MAXIMUM_VALUE)
+               ELSE 0
+             END AS PCT_USED,
+             LAST_CHANGE_TIMESTAMP, COMMENTS
+        FROM QSYS2.SYSLIMITS
+        WHERE MAXIMUM_VALUE > 0
+          AND CURRENT_VALUE * 100 / MAXIMUM_VALUE >= :threshold_pct
+        ORDER BY PCT_USED DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "database-application"
+      category: "system-limits"
+
+toolsets:
+  database_application_default:
+    title: "Database Application Tools"
+    description: "Read-only tools for SQL error log analysis, error summaries, statement parsing, SQLCODE lookup, SQL name delimiting, and system limit monitoring."
+    tools:
+      - list_sql_error_log
+      - get_sql_error_summary
+      - parse_sql_statement
+      - get_sqlcode_info
+      - delimit_name
+      - get_system_limits
+      - get_system_limits_near_max

@@ -1,6 +1,6 @@
 ---
 name: work-management
-description: "Query, monitor, and analyze jobs on IBM i using SQL table functions via ibmi-mcp-server. Use when user asks about: (1) finding jobs by status, user, subsystem, or type, (2) monitoring active job performance (CPU, I/O, memory), (3) detecting long-running SQL statements, (4) analyzing lock contention, (5) checking job queues, (6) replacing WRKACTJOB, WRKUSRJOB, WRKSBSJOB, WRKSBMJOB commands, or (7) any IBM i work management task."
+description: "Query, monitor, and analyze jobs on IBM i using SQL table functions via the ibmi CLI and ibmi-mcp-server. Use when user asks about: (1) finding jobs by status, user, subsystem, or type, (2) monitoring active job performance (CPU, I/O, memory), (3) detecting long-running SQL statements, (4) analyzing lock contention, (5) checking job queues, (6) scheduled jobs, (7) job logs, (8) replacing WRKACTJOB, WRKUSRJOB, WRKSBSJOB, WRKSBMJOB commands, or (9) any IBM i work management task."
 ---
 
 # IBM i Work Management & Job Monitoring
@@ -9,13 +9,20 @@ Query, monitor, and analyze jobs on IBM i using SQL table functions `QSYS2.JOB_I
 
 ## Available Tools
 
-The `ibmi-mcp-server` should already be connected with two available tools:
-- `describe_sql_object`
-- `execute_sql`
+The `ibmi` CLI is the primary tool for executing work management queries:
 
-Use the `describe_sql_object` tool to get information on any IBM i Object, for example, to column information for a given table, or Function. If you need to write your own SQL statement, make sure to validate SQL objects being referenced with this tool.
+```bash
+# List all work management tools
+ibmi tools --tools tools/ --toolset work_management_default
 
-Use the `execute_sql` tool to run SQL statements on the IBM i system. This tool only runs read only (`SELECT`) statements. 
+# Run a specific tool
+ibmi tool list_active_jobs --tools tools/
+
+# Ad-hoc SQL for custom queries
+ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO(JOB_NAME_FILTER => '*')) X"
+```
+
+The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents. Use `describe_sql_object` to verify columns and parameters before writing custom SQL.
 
 
 ## Service Selection Guide
@@ -211,6 +218,27 @@ SELECT JOB_NAME, AUTHORIZATION_NAME,
 ### Find jobs for a specific user
 ```sql
 SELECT * FROM TABLE(QSYS2.JOB_INFO(JOB_USER_FILTER => 'USERNAME')) X;
+```
+
+## Pre-built Tools
+
+The `tools/work-management.yaml` file provides 8 ready-to-use tools:
+
+| Tool | Description |
+|------|-------------|
+| `list_active_jobs` | Active jobs with CPU, status, and subsystem filter |
+| `get_job_info` | Detailed info for a specific qualified job name |
+| `list_scheduled_jobs` | Scheduled jobs with dates, times, and frequency |
+| `list_subsystems` | Active subsystems with aggregated job metrics |
+| `list_job_queues` | Job queues with status and job count breakdowns |
+| `get_job_log_entries` | Job log messages for a specific job |
+| `find_long_running_sql` | Active SQL statements sorted by elapsed time |
+| `find_jobs_by_user` | All jobs for a user across all statuses |
+
+```bash
+ibmi tool <tool_name> --tools tools/          # Execute
+ibmi tool <tool_name> --tools tools/ --dry-run # Preview SQL
+ibmi tools show <tool_name> --tools tools/     # View details
 ```
 
 ## Reference Documentation

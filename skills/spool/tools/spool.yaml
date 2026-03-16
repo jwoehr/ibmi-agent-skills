@@ -1,0 +1,288 @@
+sources:
+  ibmi-system:
+    host: ${DB2i_HOST}
+    user: ${DB2i_USER}
+    password: ${DB2i_PASS}
+    port: 8076
+    ignore-unauthorized: true
+
+tools:
+  list_output_queues:
+    source: ibmi-system
+    description: "List output queues on the IBM i system with status, number of files, and writer information. Use this to find which output queues exist and their current state."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library name to filter output queues. Use '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of output queues to return."
+        default: 100
+    statement: |
+      SELECT OUTPUT_QUEUE_LIBRARY_NAME, OUTPUT_QUEUE_NAME, OUTPUT_QUEUE_STATUS,
+             NUMBER_OF_FILES, WRITER_JOB_NAME, WRITER_JOB_STATUS,
+             TEXT_DESCRIPTION, ORDER_OF_FILES
+        FROM QSYS2.OUTPUT_QUEUE_INFO
+        WHERE :library_filter = '*ALL' OR OUTPUT_QUEUE_LIBRARY_NAME = UPPER(:library_filter)
+        ORDER BY NUMBER_OF_FILES DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "output-queues"
+
+  list_output_queue_entries:
+    source: ibmi-system
+    description: "List spooled file entries in a specific output queue with detailed information including job name, status, pages, and size. Requires the output queue library and name."
+    parameters:
+      - name: output_queue_library
+        type: string
+        description: "Library containing the output queue (e.g., 'QUSRSYS', 'QGPL')."
+        required: true
+      - name: output_queue_name
+        type: string
+        description: "Name of the output queue to list entries from."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT SPOOLED_FILE_NAME, JOB_NAME, STATUS, TOTAL_PAGES,
+             SIZE, USER_NAME, CREATE_TIMESTAMP, OUTPUT_QUEUE_NAME
+        FROM QSYS2.OUTPUT_QUEUE_ENTRIES
+        WHERE OUTPUT_QUEUE_LIBRARY_NAME = UPPER(:output_queue_library)
+          AND OUTPUT_QUEUE_NAME = UPPER(:output_queue_name)
+        ORDER BY CREATE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "output-queue-entries"
+
+  list_spool_files_basic:
+    source: ibmi-system
+    description: "List all spooled file entries system-wide from the basic output queue view. Lighter weight than the detailed view — good for broad searches across all output queues."
+    parameters:
+      - name: status_filter
+        type: string
+        description: "Filter by spool file status (e.g., 'READY', 'HELD', 'SAVED'). Use '*ALL' for all statuses."
+        default: "*ALL"
+      - name: user_filter
+        type: string
+        description: "Filter by user name. Use '*ALL' for all users."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of entries to return."
+        default: 100
+    statement: |
+      SELECT SPOOLED_FILE_NAME, JOB_NAME, STATUS, TOTAL_PAGES, SIZE,
+             USER_NAME, CREATE_TIMESTAMP, OUTPUT_QUEUE_LIBRARY_NAME,
+             OUTPUT_QUEUE_NAME
+        FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC
+        WHERE (:status_filter = '*ALL' OR STATUS = UPPER(:status_filter))
+          AND (:user_filter = '*ALL' OR USER_NAME = UPPER(:user_filter))
+        ORDER BY CREATE_TIMESTAMP DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "output-queue-entries"
+
+  get_spooled_file_info:
+    source: ibmi-system
+    description: "Get detailed information about spooled files for a specific job, including file attributes, page count, copies, and output queue placement. Use this for deep inspection of individual job spool output."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'NUMBER/USER/NAME' (e.g., '012345/QUSER/MYJOB'). Use '*' for the current job."
+        required: true
+      - name: limit
+        type: integer
+        description: "Maximum number of spooled files to return."
+        default: 50
+    statement: |
+      SELECT SPOOLED_FILE_NAME, FILE_NUMBER, STATUS, TOTAL_PAGES,
+             COPIES, OUTPUT_QUEUE_LIBRARY_NAME, OUTPUT_QUEUE_NAME,
+             CREATE_TIMESTAMP, SIZE, USER_DATA, FORM_TYPE, DEVICE_FILE_NAME
+        FROM TABLE(QSYS2.SPOOLED_FILE_INFO(JOB_NAME => :job_name))
+        ORDER BY FILE_NUMBER
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "spooled-files"
+
+  read_spooled_file_data:
+    source: ibmi-system
+    description: "Read the actual content (data lines) of a spooled file. Returns the text data line by line. Useful for previewing report output or extracting data from spool files."
+    parameters:
+      - name: job_name
+        type: string
+        description: "Qualified job name in format 'NUMBER/USER/NAME' (e.g., '012345/QUSER/MYJOB')."
+        required: true
+      - name: spooled_file_name
+        type: string
+        description: "Name of the spooled file to read."
+        required: true
+      - name: spooled_file_number
+        type: integer
+        description: "Spooled file number within the job. Use -1 for the latest."
+        default: -1
+      - name: limit
+        type: integer
+        description: "Maximum number of lines to return."
+        default: 200
+    statement: |
+      SELECT ORDINAL_POSITION, SPOOLED_DATA
+        FROM TABLE(SYSTOOLS.SPOOLED_FILE_DATA(
+          JOB_NAME => :job_name,
+          SPOOLED_FILE_NAME => :spooled_file_name,
+          SPOOLED_FILE_NUMBER => :spooled_file_number))
+        ORDER BY ORDINAL_POSITION
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "spooled-files"
+
+  top_spool_consumers:
+    source: ibmi-system
+    description: "Identify the top spool storage consumers by user. Shows total files, total pages, and total size per user across all output queues — useful for storage analysis and cleanup planning."
+    parameters:
+      - name: limit
+        type: integer
+        description: "Number of top consumers to return."
+        default: 20
+    statement: |
+      SELECT USER_NAME, COUNT(*) AS TOTAL_FILES,
+             SUM(TOTAL_PAGES) AS TOTAL_PAGES,
+             SUM(SIZE) AS TOTAL_SIZE_BYTES
+        FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC
+        GROUP BY USER_NAME
+        ORDER BY TOTAL_SIZE_BYTES DESC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "analysis"
+
+  find_old_spool_files:
+    source: ibmi-system
+    description: "Find spool files older than a specified number of days. Useful for identifying cleanup candidates and managing spool storage growth."
+    parameters:
+      - name: days_old
+        type: integer
+        description: "Find spool files older than this many days (e.g., 30, 60, 90)"
+        required: true
+      - name: user_filter
+        type: string
+        description: "User profile to filter by, or '*ALL' for all users."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of results to return."
+        default: 100
+    statement: |
+      SELECT SPOOLED_FILE_NAME, JOB_NAME, USER_NAME,
+             CREATE_TIMESTAMP, SIZE, STATUS,
+             OUTPUT_QUEUE_NAME, TOTAL_PAGES
+        FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC
+        WHERE CREATE_TIMESTAMP < CURRENT_TIMESTAMP - :days_old DAYS
+          AND (:user_filter = '*ALL' OR USER_NAME = UPPER(:user_filter))
+        ORDER BY CREATE_TIMESTAMP ASC
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "analysis"
+
+  get_printer_file_info:
+    source: ibmi-system
+    description: "List printer file definitions on the system showing library, name, output queue, page dimensions, copies, and other attributes from the dedicated SYSTOOLS.PRINTER_FILE_INFO view."
+    parameters:
+      - name: library_filter
+        type: string
+        description: "Library name to filter printer files. Use '*ALL' for all libraries."
+        default: "*ALL"
+      - name: limit
+        type: integer
+        description: "Maximum number of printer files to return."
+        default: 100
+    statement: |
+      SELECT PRINTER_FILE_LIBRARY, PRINTER_FILE, TEXT_DESCRIPTION,
+             SPOOLED_OUTPUT_QUEUE_LIBRARY, SPOOLED_OUTPUT_QUEUE,
+             COPIES, PAGE_LENGTH, PAGE_WIDTH, LINES_PER_INCH,
+             CHARACTERS_PER_INCH, EXTERNALLY_DESCRIBED, OWNER,
+             CREATE_TIMESTAMP, LAST_USED_TIMESTAMP, SIZE
+        FROM SYSTOOLS.PRINTER_FILE_INFO
+        WHERE (:library_filter = '*ALL' OR PRINTER_FILE_LIBRARY = UPPER(:library_filter))
+        ORDER BY PRINTER_FILE_LIBRARY, PRINTER_FILE
+        FETCH FIRST :limit ROWS ONLY
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "printer-files"
+
+  spool_storage_summary:
+    source: ibmi-system
+    description: "Get an overall summary of spool storage usage across the system. Shows total files, total pages, total size, and counts by status."
+    parameters: []
+    statement: |
+      SELECT COUNT(*) AS TOTAL_SPOOL_FILES,
+             SUM(TOTAL_PAGES) AS TOTAL_PAGES,
+             SUM(SIZE) AS TOTAL_SIZE_BYTES,
+             SUM(CASE WHEN STATUS = 'READY' THEN 1 ELSE 0 END) AS READY_COUNT,
+             SUM(CASE WHEN STATUS = 'HELD' THEN 1 ELSE 0 END) AS HELD_COUNT,
+             SUM(CASE WHEN STATUS = 'SAVED' THEN 1 ELSE 0 END) AS SAVED_COUNT,
+             MIN(CREATE_TIMESTAMP) AS OLDEST_SPOOL_FILE,
+             MAX(CREATE_TIMESTAMP) AS NEWEST_SPOOL_FILE
+        FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC
+    security:
+      readOnly: true
+    annotations:
+      readOnlyHint: true
+      idempotentHint: true
+      domain: "spool"
+      category: "analysis"
+
+toolsets:
+  spool_default:
+    title: "Spool File Management"
+    description: "Tools for querying spooled files, output queues, printer configurations, and spool storage analysis."
+    tools:
+      - list_output_queues
+      - list_output_queue_entries
+      - list_spool_files_basic
+      - get_spooled_file_info
+      - read_spooled_file_data
+      - top_spool_consumers
+      - find_old_spool_files
+      - get_printer_file_info
+      - spool_storage_summary

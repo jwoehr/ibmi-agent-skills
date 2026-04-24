@@ -20,8 +20,6 @@ ibmi tool list_programs --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.PROGRAM_INFO WHERE PROGRAM_LIBRARY = 'MYLIB' FETCH FIRST 20 ROWS ONLY"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Object Discovery

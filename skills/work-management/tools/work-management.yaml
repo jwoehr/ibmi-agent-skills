@@ -172,7 +172,7 @@ tools:
         description: "Maximum number of jobs to return."
         default: 100
     statement: |
-      SELECT JOB_NAME, JOB_TYPE, JOB_STATUS, SUBSYSTEM,
+      SELECT JOB_NAME, JOB_TYPE, JOB_STATUS, JOB_SUBSYSTEM,
              JOB_ENTERED_SYSTEM_TIME, JOB_ACTIVE_TIME
       FROM TABLE(QSYS2.JOB_INFO(
         JOB_USER_FILTER => UPPER(:user_name),

@@ -164,8 +164,12 @@ tools:
 
   list_files_exposed_to_trigger_attack:
     source: ibmi-system
-    description: "Identify database files exposed to trigger attacks where *PUBLIC can read the file and also has alter or management authority, enabling malicious trigger creation."
+    description: "Identify database files exposed to trigger attacks where *PUBLIC can read the file and also has alter or management authority, enabling malicious trigger creation. Optionally scope to a library — the unscoped scan of QSYS2.OBJECT_PRIVILEGES across every *PUBLIC-executable library can exceed the default 30-second CLI timeout; pass --library-filter and/or --timeout 120000 on busy systems."
     parameters:
+      - name: library_filter
+        type: string
+        description: "Single library to scope the search (e.g. 'QGPL'). Leave empty to scan every library where *PUBLIC has *EXECUTE — slow, may time out."
+        default: ""
       - name: limit
         type: integer
         description: "Maximum number of files to return."
@@ -178,6 +182,7 @@ tools:
             AND OBJECT_TYPE = '*LIB'
             AND AUTHORIZATION_NAME = '*PUBLIC'
             AND DATA_EXECUTE = 'YES'
+            AND (:library_filter = '' OR SYSTEM_OBJECT_NAME = UPPER(:library_filter))
       )
       SELECT lib_name, p.SYSTEM_OBJECT_NAME, p.OBJECT_AUTHORITY,
              p.OBJECT_ALTER, p.OBJECT_MANAGEMENT

@@ -78,7 +78,7 @@ Remove imported data.
 
 - All plan cache services are PROCEDURES requiring CALL statements
 - CALL statements require a connection that supports write operations
-- The ibmi CLI read-only mode blocks CALL statements; use MCP execute_sql or direct connection
+- The ibmi CLI read-only mode blocks CALL statements; target a writable system (e.g. the default `dev` connection)
 - Snapshot output files use QQQ-column naming (QQRID, QQJOB, QQUSER, QQETIM, etc.)
 - Plan cache snapshot files contain 280+ columns in the database monitor format
 - DUMP_PLAN_CACHE_TOPN CATEGORY values: TOTAL_TIME, CPU_TIME, IO_COUNT, TEMP_STORAGE, ROWS_FETCHED

@@ -102,13 +102,13 @@ tools:
         default: 50
     statement: |
       SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_PARTITION,
-             SYSTEM_TABLE_SCHEMA, SYSTEM_TABLE_NAME,
-             MTI_STATUS, MTI_CREATED, MTI_LAST_QUERY_USE,
-             MTI_QUERY_USE_COUNT, MTI_SIZE,
-             MTI_KEY_COLUMNS_ESTIMATED, MTI_KEY_COLUMNS_COUNT
+             STATE, REFERENCE_COUNT,
+             KEYS AS KEY_COUNT, MTI_SIZE,
+             CREATE_TIME, LAST_BUILD_START_TIME, LAST_BUILD_END_TIME,
+             REUSABLE, SPARSE, USER_NAME
         FROM TABLE(QSYS2.MTI_INFO(
           UPPER(:schema_name), UPPER(:table_name)))
-        ORDER BY MTI_QUERY_USE_COUNT DESC
+        ORDER BY MTI_SIZE DESC
         FETCH FIRST :limit ROWS ONLY
     security:
       readOnly: true

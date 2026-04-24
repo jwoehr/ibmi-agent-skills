@@ -113,11 +113,11 @@ tools:
         description: "Maximum number of spooled files to return."
         default: 50
     statement: |
-      SELECT SPOOLED_FILE_NAME, FILE_NUMBER, STATUS, TOTAL_PAGES,
-             COPIES, OUTPUT_QUEUE_LIBRARY_NAME, OUTPUT_QUEUE_NAME,
-             CREATE_TIMESTAMP, SIZE, USER_DATA, FORM_TYPE, DEVICE_FILE_NAME
+      SELECT SPOOLED_FILE_NAME, SPOOLED_FILE_NUMBER, STATUS, TOTAL_PAGES,
+             COPIES, OUTPUT_QUEUE_LIBRARY, OUTPUT_QUEUE,
+             CREATION_TIMESTAMP, SIZE, USER_DATA, FORM_TYPE
         FROM TABLE(QSYS2.SPOOLED_FILE_INFO(JOB_NAME => :job_name))
-        ORDER BY FILE_NUMBER
+        ORDER BY SPOOLED_FILE_NUMBER
         FETCH FIRST :limit ROWS ONLY
     security:
       readOnly: true
@@ -141,8 +141,8 @@ tools:
         required: true
       - name: spooled_file_number
         type: integer
-        description: "Spooled file number within the job. Use -1 for the latest."
-        default: -1
+        description: "Spooled file number within the job. Get this from list_spool_files_basic or get_spooled_file_info (column SPOOLED_FILE_NUMBER). Most jobs only have one spool file; start with 1."
+        default: 1
       - name: limit
         type: integer
         description: "Maximum number of lines to return."

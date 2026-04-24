@@ -22,13 +22,11 @@ ibmi tools --tools "$SKILL_DIR/tools/" --toolset database_application_default
 ibmi tool list_sql_error_log --tools "$SKILL_DIR/tools/"
 
 # Run with parameters
-ibmi tool get_sqlcode_info --tools "$SKILL_DIR/tools/" sqlcode=-204
+ibmi tool get_sqlcode_info --tools "$SKILL_DIR/tools/" --sqlcode -204
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.SQL_ERROR_LOG ORDER BY LOGGED_TIME DESC FETCH FIRST 10 ROWS ONLY"
 ```
-
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
 
 ## Service Selection Guide
 
@@ -88,22 +86,22 @@ ibmi tool list_sql_error_log --tools "$SKILL_DIR/tools/"
 
 ### Errors for a specific program
 ```bash
-ibmi tool list_sql_error_log --tools "$SKILL_DIR/tools/" program_name=MYPGM program_library=MYLIB
+ibmi tool list_sql_error_log --tools "$SKILL_DIR/tools/" --program-name MYPGM --program-library MYLIB
 ```
 
 ### Look up an SQLCODE
 ```bash
-ibmi tool get_sqlcode_info --tools "$SKILL_DIR/tools/" sqlcode=-204
+ibmi tool get_sqlcode_info --tools "$SKILL_DIR/tools/" --sqlcode -204
 ```
 
 ### Parse a SQL statement
 ```bash
-ibmi tool parse_sql_statement --tools "$SKILL_DIR/tools/" sql_statement="SELECT * FROM MYLIB.ORDERS JOIN MYLIB.CUSTOMERS ON ORDERS.CUSTID = CUSTOMERS.ID"
+ibmi tool parse_sql_statement --tools "$SKILL_DIR/tools/" --sql-statement "SELECT * FROM MYLIB.ORDERS JOIN MYLIB.CUSTOMERS ON ORDERS.CUSTID = CUSTOMERS.ID"
 ```
 
 ### Find objects near capacity limits
 ```bash
-ibmi tool get_system_limits_near_max --tools "$SKILL_DIR/tools/" threshold_pct=75
+ibmi tool get_system_limits_near_max --tools "$SKILL_DIR/tools/" --threshold-pct 75
 ```
 
 ## Pre-built Tools

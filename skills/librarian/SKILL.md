@@ -20,8 +20,6 @@ ibmi tool get_library_list --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.LIBRARY_LIST_INFO ORDER BY ORDINAL_POSITION"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Library List

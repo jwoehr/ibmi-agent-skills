@@ -103,8 +103,8 @@ tools:
         required: true
       - name: min_size_mb
         type: integer
-        description: "Minimum size in megabytes to include. Use 0 for all objects."
-        default: 0
+        description: "Minimum size in megabytes to include. Keep this above 0 to avoid timeouts on busy trees; set to 0 only for small subtrees."
+        default: 10
       - name: limit
         type: integer
         description: "Maximum number of results to return."

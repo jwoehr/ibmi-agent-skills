@@ -25,8 +25,6 @@ ibmi tool get_system_status --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS(RESET_STATISTICS => 'YES')) X"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### System Status & Activity
@@ -100,7 +98,7 @@ ibmi tool get_memory_pools --tools "$SKILL_DIR/tools/"
 
 ### Find limits above 80% used
 ```bash
-ibmi tool get_system_limits --tools "$SKILL_DIR/tools/" pct_threshold=80
+ibmi tool get_system_limits --tools "$SKILL_DIR/tools/" --pct-threshold 80
 ```
 
 ### ASP capacity check

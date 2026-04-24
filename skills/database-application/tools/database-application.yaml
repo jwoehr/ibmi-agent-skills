@@ -106,9 +106,9 @@ tools:
         description: "The SQLCODE value to look up (e.g., -204, -811, 100)."
         required: true
     statement: |
-      SELECT :sqlcode AS SQLCODE,
+      SELECT CAST(:sqlcode AS INTEGER) AS SQLCODE,
              MESSAGE_ID, MESSAGE_TEXT, MESSAGE_SECOND_LEVEL_TEXT
-        FROM TABLE(SYSTOOLS.SQLCODE_INFO(:sqlcode))
+        FROM TABLE(SYSTOOLS.SQLCODE_INFO(CAST(:sqlcode AS INTEGER)))
     security:
       readOnly: true
     annotations:
@@ -126,8 +126,8 @@ tools:
         description: "The SQL name/identifier to delimit."
         required: true
     statement: |
-      SELECT :name_value AS ORIGINAL_NAME,
-             QSYS2.DELIMIT_NAME(:name_value) AS DELIMITED_NAME
+      SELECT CAST(:name_value AS VARCHAR(128)) AS ORIGINAL_NAME,
+             QSYS2.DELIMIT_NAME(CAST(:name_value AS VARCHAR(128))) AS DELIMITED_NAME
         FROM SYSIBM.SYSDUMMY1
     security:
       readOnly: true

@@ -25,8 +25,6 @@ ibmi tool read_message_queue --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.MESSAGE_QUEUE_INFO WHERE MESSAGE_QUEUE_NAME = 'QSYSOPR' AND MESSAGE_QUEUE_LIBRARY = 'QSYS' FETCH FIRST 10 ROWS ONLY"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Message Queues
@@ -84,12 +82,12 @@ ibmi tool read_message_queue --tools "$SKILL_DIR/tools/"
 
 ### Find high-severity messages (40+)
 ```bash
-ibmi tool read_high_severity_messages --tools "$SKILL_DIR/tools/" severity_min=40
+ibmi tool read_high_severity_messages --tools "$SKILL_DIR/tools/" --severity-min 40
 ```
 
 ### Search history log
 ```bash
-ibmi tool search_history_log --tools "$SKILL_DIR/tools/" search_term=CPF1124
+ibmi tool search_history_log --tools "$SKILL_DIR/tools/" --search-term CPF1124
 ```
 
 ### Look up a message definition

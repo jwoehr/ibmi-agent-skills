@@ -1,6 +1,6 @@
 ---
 name: ibmi
-description: "Core skill for working with IBM i systems via the ibmi CLI and ibmi-mcp-server. Provides text-to-SQL methodology, iterative querying best practices, schema discovery, and SQL validation patterns for Db2 for i. Use as the foundation for ANY IBM i task — install this skill first, then add domain-specific skills (ibmi-database, ibmi-system) as needed."
+description: "Core skill for working with IBM i systems via the ibmi CLI. Provides text-to-SQL methodology, iterative querying best practices, schema discovery, and SQL validation patterns for Db2 for i. Use as the foundation for ANY IBM i task — install this skill first, then add domain-specific skills (ibmi-database, ibmi-system) as needed."
 ---
 
 # IBM i Core — CLI & Text-to-SQL
@@ -11,7 +11,15 @@ Foundation skill for working with IBM i systems. Provides the iterative querying
 
 ### ibmi CLI
 
-The `ibmi` CLI is the primary mechanism for executing SQL and running pre-built tools:
+The `ibmi` CLI is the primary mechanism for executing SQL and running pre-built tools. Install globally or run on demand:
+
+```bash
+# One-shot via npx (no install required)
+npx -y @ibm/ibmi-cli --help
+
+# Or install globally
+npm i -g @ibm/ibmi-cli
+```
 
 ```bash
 # Ad-hoc SQL
@@ -24,6 +32,7 @@ ibmi sql --file query.sql                # From file
 ibmi schemas                             # List all schemas
 ibmi tables <schema>                     # List tables/views
 ibmi columns <schema> <table>            # Column metadata
+ibmi describe <schema>.<object>          # Generate DDL / metadata
 
 # Pre-built tools (from YAML files)
 ibmi tools --tools <path>                # List available tools
@@ -33,12 +42,6 @@ ibmi tool <name> --tools <path> --dry-run # Preview SQL
 # SQL validation
 ibmi validate "SELECT ..."               # Syntax check
 ```
-
-### ibmi-mcp-server
-
-For MCP-connected agents, the `ibmi-mcp-server` provides:
-- `execute_sql` — Run SELECT statements
-- `describe_sql_object` — Get DDL/metadata for any IBM i object
 
 ## Text-to-SQL Methodology
 

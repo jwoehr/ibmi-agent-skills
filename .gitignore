@@ -14,3 +14,6 @@ wheels/
 
 .claude
 tmp/
+
+# Local smoke-test reports (agent output; not part of the published skill set)
+.smoke-test-reports/

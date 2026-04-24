@@ -83,7 +83,7 @@ ibmi tool get_ifs_object_authorities --tools "$SKILL_DIR/tools/" --path /home/my
 
 ## Pre-built Tools
 
-The `tools/ifs.yaml` file provides 8 ready-to-use tools:
+The `tools/ifs.yaml` file provides 10 ready-to-use tools:
 
 | Tool | Description |
 |------|-------------|
@@ -95,6 +95,8 @@ The `tools/ifs.yaml` file provides 8 ready-to-use tools:
 | `read_ifs_file` | Read text file contents line by line |
 | `list_ifs_object_locks` | Lock information for file contention diagnosis |
 | `list_server_shares` | NetServer file and print shares |
+| `compare_ifs_objects` | Compare attributes and content of two IFS objects |
+| `list_ifs_job_info` | IFS file handles held by a specific job |
 
 ```bash
 ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute

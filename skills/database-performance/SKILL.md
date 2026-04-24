@@ -22,13 +22,11 @@ ibmi tools --tools "$SKILL_DIR/tools/" --toolset database_performance_default
 ibmi tool get_index_statistics --tools "$SKILL_DIR/tools/"
 
 # Run with parameters
-ibmi tool get_mti_info --tools "$SKILL_DIR/tools/" schema_name=MYLIB table_name=ORDERS
+ibmi tool get_mti_info --tools "$SKILL_DIR/tools/" --schema-name MYLIB --table-name ORDERS
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.SYSINDEXSTAT WHERE TABLE_SCHEMA = 'MYLIB' ORDER BY QUERY_USE_COUNT DESC"
 ```
-
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
 
 ## Service Selection Guide
 
@@ -89,22 +87,22 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### View index statistics for a library
 ```bash
-ibmi tool get_index_statistics --tools "$SKILL_DIR/tools/" schema_filter=MYLIB
+ibmi tool get_index_statistics --tools "$SKILL_DIR/tools/" --schema-filter MYLIB
 ```
 
 ### Find unused indexes
 ```bash
-ibmi tool get_unused_indexes --tools "$SKILL_DIR/tools/" schema_filter=MYLIB unused_days=90
+ibmi tool get_unused_indexes --tools "$SKILL_DIR/tools/" --schema-filter MYLIB --unused-days 90
 ```
 
 ### Check MTIs on a specific table
 ```bash
-ibmi tool get_mti_info --tools "$SKILL_DIR/tools/" schema_name=MYLIB table_name=ORDERS
+ibmi tool get_mti_info --tools "$SKILL_DIR/tools/" --schema-name MYLIB --table-name ORDERS
 ```
 
 ### Find tables with high MTI overhead
 ```bash
-ibmi tool get_tables_with_high_mti --tools "$SKILL_DIR/tools/" schema_filter=MYLIB min_mti_size=1048576
+ibmi tool get_tables_with_high_mti --tools "$SKILL_DIR/tools/" --schema-filter MYLIB --min-mti-size 1048576
 ```
 
 ### Review query supervisor thresholds

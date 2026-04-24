@@ -1,6 +1,6 @@
 ---
 name: work-management
-description: "Query, monitor, and analyze jobs on IBM i using SQL table functions via the ibmi CLI and ibmi-mcp-server. Use when user asks about: (1) finding jobs by status, user, subsystem, or type, (2) monitoring active job performance (CPU, I/O, memory), (3) detecting long-running SQL statements, (4) analyzing lock contention, (5) checking job queues, (6) scheduled jobs, (7) job logs, (8) replacing WRKACTJOB, WRKUSRJOB, WRKSBSJOB, WRKSBMJOB commands, or (9) any IBM i work management task."
+description: "Query, monitor, and analyze jobs on IBM i using SQL table functions via the ibmi CLI. Use when user asks about: (1) finding jobs by status, user, subsystem, or type, (2) monitoring active job performance (CPU, I/O, memory), (3) detecting long-running SQL statements, (4) analyzing lock contention, (5) checking job queues, (6) scheduled jobs, (7) job logs, (8) replacing WRKACTJOB, WRKUSRJOB, WRKSBSJOB, WRKSBMJOB commands, or (9) any IBM i work management task."
 ---
 
 # IBM i Work Management & Job Monitoring
@@ -25,7 +25,7 @@ ibmi tool list_active_jobs --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO(JOB_NAME_FILTER => '*')) X"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents. Use `describe_sql_object` to verify columns and parameters before writing custom SQL.
+Use `ibmi describe <schema>.<object>` to verify columns and parameters before writing custom SQL.
 
 
 ## Service Selection Guide
@@ -225,7 +225,7 @@ SELECT * FROM TABLE(QSYS2.JOB_INFO(JOB_USER_FILTER => 'USERNAME')) X;
 
 ## Pre-built Tools
 
-The `tools/work-management.yaml` file provides 8 ready-to-use tools:
+The `tools/work-management.yaml` file provides 12 ready-to-use tools:
 
 | Tool | Description |
 |------|-------------|
@@ -237,6 +237,12 @@ The `tools/work-management.yaml` file provides 8 ready-to-use tools:
 | `get_job_log_entries` | Job log messages for a specific job |
 | `find_long_running_sql` | Active SQL statements sorted by elapsed time |
 | `find_jobs_by_user` | All jobs for a user across all statuses |
+| `list_subsystem_info` | Subsystem configuration with max/current active jobs and monitor job |
+| `list_ended_jobs` | Recently ended jobs with CPU time, end code, and completion detail |
+| `list_job_descriptions` | Job descriptions with user, job queue, routing, and logging settings |
+| `list_autostart_jobs` | Autostart job entries configured in subsystem descriptions |
+
+An additional `work_management_locks` toolset provides `get_object_lock_info`, `get_record_lock_info`, and `get_job_lock_info` for contention analysis.
 
 ```bash
 ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute

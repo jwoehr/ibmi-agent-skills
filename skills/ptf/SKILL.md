@@ -25,8 +25,6 @@ ibmi tool check_ptf_currency --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.GROUP_PTF_INFO WHERE PTF_GROUP_STATUS = 'INSTALLED'"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### PTF Group Currency (requires internet access)
@@ -87,7 +85,7 @@ ibmi tool list_outdated_ptf_groups --tools "$SKILL_DIR/tools/"
 
 ### List PTFs for a product
 ```bash
-ibmi tool list_individual_ptfs --tools "$SKILL_DIR/tools/" product_filter=5770SS1
+ibmi tool list_individual_ptfs --tools "$SKILL_DIR/tools/" --product-filter 5770SS1
 ```
 
 ### PTF currency summary

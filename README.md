@@ -78,12 +78,14 @@ The only dependency is the [`ibmi` CLI](https://www.npmjs.com/package/@ibm/ibmi-
 ### Install the CLI
 
 ```bash
-# One-shot via npx (no install)
-npx -y @ibm/ibmi-cli --help
-
-# Or install globally
+# Recommended — daily use
 npm i -g @ibm/ibmi-cli
+
+# Or one-shot via npx (no install)
+npx -y @ibm/ibmi-cli --help
 ```
+
+The `ibmi` skill runs a preflight check before each session — if the CLI is missing, it will walk you through the install. Power users can just install it up-front with the command above.
 
 ### Add a system connection
 

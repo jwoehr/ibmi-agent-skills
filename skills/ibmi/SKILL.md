@@ -7,15 +7,35 @@ description: "Core skill for working with IBM i systems through the ibmi CLI. Co
 
 Foundation skill for working with IBM i systems. Covers CLI usage, Db2 for i SQL conventions, and the scripting patterns that make `ibmi` a reliable building block for agent workflows, bash automation, and CI pipelines.
 
-## Installing the CLI
+## Preflight
+
+Before running any `ibmi` command, verify the CLI is installed, recent enough, and has a system configured.
 
 ```bash
-# One-shot via npx (no install required)
-npx -y @ibm/ibmi-cli --help
-
-# Or install globally
-npm i -g @ibm/ibmi-cli
+command -v ibmi                  # CLI present on PATH
+ibmi --version                   # expect >= 0.5 for all features in this skill
+ibmi system list                 # shows configured systems and which is default
 ```
+
+**If the CLI is missing**, ask the user whether to install it, then run one of:
+
+```bash
+# Recommended — daily use
+npm i -g @ibm/ibmi-cli
+
+# One-shot via npx (no install; first call is slower while npx caches)
+npx -y @ibm/ibmi-cli --help
+```
+
+**If the CLI is outdated** (a flag or subcommand used below is rejected), upgrade:
+
+```bash
+npm update -g @ibm/ibmi-cli
+```
+
+**If no systems are configured**, `ibmi system list` returns no rows. Walk the user through the **System connections** section below (`ibmi system add` → `ibmi system default` → `ibmi system test`) before issuing queries. For ephemeral / CI environments, set `DB2i_HOST`, `DB2i_USER`, and `DB2i_PASS` as environment variables instead of using the config file.
+
+Never execute destructive or mutating SQL (`INSERT/UPDATE/DELETE/CALL`, or any `--no-read-only`) without confirming scope and system with the user first.
 
 ## CLI at a glance
 

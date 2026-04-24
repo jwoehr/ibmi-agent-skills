@@ -2,24 +2,24 @@
   "name": "ibmi-agent-skills",
   "owner": {
     "name": "Adam Shedivy",
-    "email": "ajshedivy@gmail.com"
+    "email": "ajshedivyaj@gmail.com"
   },
   "metadata": {
-    "description": "Agent skills for AI coding assistants to work with IBM i systems via SQL Services",
-    "version": "1.2.0"
+    "description": "Agent skills for AI coding assistants to work with IBM i systems via the @ibm/ibmi-cli and SQL Services",
+    "version": "1.3.0"
   },
   "plugins": [
     {
       "name": "ibmi-core",
-      "description": "Core IBM i skill — ibmi CLI usage, text-to-SQL methodology, iterative querying patterns, schema discovery, and SQL validation for Db2 for i. Install this first, then add domain-specific plugins.",
-      "version": "1.2.0",
+      "description": "Core IBM i skill — ibmi CLI usage, text-to-SQL methodology, schema discovery, SQL validation, and agent scripting patterns (exit codes, NDJSON, --dry-run, multi-system). Install this first, then add domain-specific plugins.",
+      "version": "1.3.0",
       "source": "./",
       "skills": [
         "./skills/ibmi"
       ],
       "author": {
         "name": "Adam Shedivy",
-        "email": "ajshedivy@gmail.com"
+        "email": "ajshedivyaj@gmail.com"
       },
       "category": "development",
       "keywords": ["ibm-i", "db2", "sql", "text2sql", "cli"]
@@ -27,7 +27,7 @@
     {
       "name": "ibmi-database",
       "description": "Database administration skills for IBM i — utility, performance, plan cache, application SQL, and journal management. 51 tools for Db2 for i DBAs and SQL developers.",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "source": "./",
       "skills": [
         "./skills/database-utility",
@@ -38,7 +38,7 @@
       ],
       "author": {
         "name": "Adam Shedivy",
-        "email": "ajshedivy@gmail.com"
+        "email": "ajshedivyaj@gmail.com"
       },
       "category": "database",
       "keywords": ["ibm-i", "db2", "database", "sql", "journal", "plan-cache", "performance"]
@@ -46,7 +46,7 @@
     {
       "name": "ibmi-system",
       "description": "System administration skills for IBM i — work management, storage, security, communication, PTFs, spool, IFS, and more. 161 tools for sysadmins, operators, security officers, and developers.",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "source": "./",
       "skills": [
         "./skills/work-management",
@@ -70,15 +70,15 @@
       ],
       "author": {
         "name": "Adam Shedivy",
-        "email": "ajshedivy@gmail.com"
+        "email": "ajshedivyaj@gmail.com"
       },
       "category": "system-administration",
       "keywords": ["ibm-i", "system", "security", "work-management", "storage", "ptf", "spool"]
     },
     {
       "name": "ibmi-all",
-      "description": "All IBM i agent skills — complete coverage of every SQL Service category. 24 skills with 219+ tools. Installs ibmi-core, ibmi-database, and ibmi-system together.",
-      "version": "1.2.0",
+      "description": "All IBM i agent skills — complete coverage of every SQL Service category. 24 skills with 215+ tools. Installs ibmi-core, ibmi-database, and ibmi-system together.",
+      "version": "1.3.0",
       "source": "./",
       "skills": [
         "./skills/ibmi",
@@ -108,7 +108,7 @@
       ],
       "author": {
         "name": "Adam Shedivy",
-        "email": "ajshedivy@gmail.com"
+        "email": "ajshedivyaj@gmail.com"
       },
       "category": "system-administration",
       "keywords": ["ibm-i", "db2", "sql-services", "qsys2", "as400", "iseries", "complete"]

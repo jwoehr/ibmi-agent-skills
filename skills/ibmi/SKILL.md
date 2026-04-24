@@ -1,17 +1,13 @@
 ---
 name: ibmi
-description: "Core skill for working with IBM i systems via the ibmi CLI. Provides text-to-SQL methodology, iterative querying best practices, schema discovery, and SQL validation patterns for Db2 for i. Use as the foundation for ANY IBM i task — install this skill first, then add domain-specific skills (ibmi-database, ibmi-system) as needed."
+description: "Core skill for working with IBM i systems through the ibmi CLI. Covers text-to-SQL methodology, Db2 for i conventions, schema discovery, multi-system configuration, and — critically — agent scripting patterns (automatic JSON-when-piped, semantic exit codes, NDJSON streaming, dry-run planning, watch mode, multi-system workflows). Use this skill as the foundation for ANY IBM i task: running queries, exploring the database, configuring systems, writing bash/agent scripts that target IBM i, or composing pipelines that need structured output and reliable error handling."
 ---
 
-# IBM i Core — CLI & Text-to-SQL
+# IBM i Core — CLI, Text-to-SQL, and Agent Scripting
 
-Foundation skill for working with IBM i systems. Provides the iterative querying methodology, CLI usage patterns, and Db2 for i SQL conventions that all other IBM i skills build on.
+Foundation skill for working with IBM i systems. Covers CLI usage, Db2 for i SQL conventions, and the scripting patterns that make `ibmi` a reliable building block for agent workflows, bash automation, and CI pipelines.
 
-## Available Tools
-
-### ibmi CLI
-
-The `ibmi` CLI is the primary mechanism for executing SQL and running pre-built tools. Install globally or run on demand:
+## Installing the CLI
 
 ```bash
 # One-shot via npx (no install required)
@@ -21,220 +17,302 @@ npx -y @ibm/ibmi-cli --help
 npm i -g @ibm/ibmi-cli
 ```
 
-```bash
-# Ad-hoc SQL
-ibmi sql "SELECT * FROM QSYS2.SERVICES_INFO FETCH FIRST 5 ROWS ONLY"
-ibmi sql "SELECT ..." --format table     # Human-readable
-ibmi sql "SELECT ..." --limit 20         # Limit rows
-ibmi sql --file query.sql                # From file
+## CLI at a glance
 
-# Schema exploration
-ibmi schemas                             # List all schemas
-ibmi tables <schema>                     # List tables/views
-ibmi columns <schema> <table>            # Column metadata
-ibmi describe <schema>.<object>          # Generate DDL / metadata
+The CLI exposes first-class subcommands for every common discovery/execution task. Prefer them over hand-written SQL when they exist.
 
-# Pre-built tools (from YAML files)
-ibmi tools --tools <path>                # List available tools
-ibmi tool <name> --tools <path>          # Execute a tool
-ibmi tool <name> --tools <path> --dry-run # Preview SQL
+| Command | Purpose |
+|---|---|
+| `ibmi config show` | Show active configuration and file origins |
+| `ibmi system list / show / add / remove / default / test` | Manage IBM i connections |
+| `ibmi schemas [--filter] [--limit] [--system-schemas]` | List schemas/libraries |
+| `ibmi tables <schema> [--filter] [--limit]` | List tables/views/physical files in a schema |
+| `ibmi columns <schema> <table>` | Column metadata |
+| `ibmi describe <lib>.<object> [--type ...]` | Generate DDL (TABLE, VIEW, INDEX, PROCEDURE, …) |
+| `ibmi related <library> <object>` | Objects dependent on a database file |
+| `ibmi validate <sql>` | Syntax check + referenced-object existence |
+| `ibmi sql "..." [--file] [--limit] [--no-read-only] [--dry-run]` | Execute SQL |
+| `ibmi tool <name> --tools <path> [--dry-run]` | Run a YAML-defined tool |
+| `ibmi tools --tools <path> [--toolset <name>]` | List YAML tools |
+| `ibmi toolsets --tools <path>` | List toolsets |
+| `ibmi completion [bash\|zsh\|fish]` | Generate shell completion |
 
-# SQL validation
-ibmi validate "SELECT ..."               # Syntax check
-```
+Global flags useful on any command: `--system <name>`, `--format {table,json,csv,markdown}`, `--raw` (json shorthand), `--stream` (NDJSON), `--watch <s>`, `--output <path>`, `--no-color`.
 
-## Text-to-SQL Methodology
-
-Follow this iterative process when answering questions that require SQL:
-
-### Step 1: Discover the Schema
-
-Never guess table or column names. Always discover first:
+## System connections
 
 ```bash
-# What schemas exist?
-ibmi schemas
-
-# What tables are in a schema?
-ibmi tables QSYS2
-ibmi tables MYLIB
-
-# What columns does a table have?
-ibmi columns QSYS2 ACTIVE_JOB_INFO
+ibmi system list                         # Show configured systems + default
+ibmi system add prod --host ... --user ...
+ibmi system test prod                    # Connectivity check — use in CI
+ibmi system default dev                  # Set default
+ibmi --system prod sql "SELECT ..."      # Override per command
 ```
 
-### Step 2: Validate Before Executing
+`ibmi config show` prints the resolved config and which file each value came from — useful when a script misbehaves because of a stale env var or config file.
 
-Always validate SQL syntax before running queries against data:
+## Text-to-SQL methodology
+
+Iterate in four steps. Never guess names — always discover first.
+
+### 1. Discover the schema
+
+```bash
+ibmi schemas                             # What libraries exist
+ibmi tables QSYS2 --filter '%JOB%'       # Tables matching a pattern
+ibmi columns QSYS2 ACTIVE_JOB_INFO       # Column metadata
+ibmi describe QSYS2.ACTIVE_JOB_INFO      # Full DDL
+```
+
+### 2. Validate before executing
 
 ```bash
 ibmi validate "SELECT JOB_NAME, CPU_TIME FROM TABLE(QSYS2.ACTIVE_JOB_INFO())"
 ```
 
-For complex queries, use `--dry-run` with pre-built tools:
+For YAML tools, use `--dry-run` to see the resolved SQL without hitting the database:
 
 ```bash
 ibmi tool list_active_jobs --tools "$SKILL_DIR/tools/" --dry-run
 ```
 
-### Step 3: Start Small, Iterate
+### 3. Start small, iterate
 
-Begin with a narrow query, inspect results, then expand:
+Begin narrow, inspect, then expand:
 
 ```bash
-# 1. Sample a few rows to understand the data
 ibmi sql "SELECT * FROM QSYS2.JOB_QUEUE_INFO FETCH FIRST 3 ROWS ONLY"
-
-# 2. Refine with specific columns and filters
-ibmi sql "SELECT JOB_QUEUE_NAME, NUMBER_OF_JOBS, STATUS FROM QSYS2.JOB_QUEUE_INFO WHERE NUMBER_OF_JOBS > 0 ORDER BY NUMBER_OF_JOBS DESC"
-
-# 3. Add aggregation or joins as needed
 ibmi sql "SELECT JOB_QUEUE_NAME, NUMBER_OF_JOBS FROM QSYS2.JOB_QUEUE_INFO ORDER BY NUMBER_OF_JOBS DESC FETCH FIRST 10 ROWS ONLY"
 ```
 
-### Step 4: Use SERVICES_INFO for Discovery
-
-When you don't know which SQL service to use, search the catalog:
+### 4. Search the service catalog when you don't know which view to use
 
 ```bash
 # Find services by keyword
 ibmi sql "SELECT SERVICE_CATEGORY, SERVICE_NAME, SQL_OBJECT_TYPE FROM QSYS2.SERVICES_INFO WHERE UPPER(SERVICE_NAME) LIKE '%JOB%' ORDER BY SERVICE_CATEGORY"
 
-# Get usage example for a service
+# Usage example for a known service
 ibmi sql "SELECT EXAMPLE FROM QSYS2.SERVICES_INFO WHERE SERVICE_NAME = 'ACTIVE_JOB_INFO'"
-
-# Browse services by category
-ibmi sql "SELECT SERVICE_NAME, SQL_OBJECT_TYPE FROM QSYS2.SERVICES_INFO WHERE SERVICE_CATEGORY = 'WORK MANAGEMENT' ORDER BY SERVICE_NAME"
 ```
 
-## Db2 for i SQL Conventions
+The helper tools `search_services` and `list_service_categories` (in `tools/ibmi.yaml`) wrap these for convenience.
 
-### Table Functions (UDTFs)
+## Db2 for i SQL conventions
 
-Many IBM i services are table functions, not views. Use `TABLE()` syntax:
+### Table functions require `TABLE()`
 
 ```sql
--- Correct: TABLE() wrapper required
-SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) X
+-- GOOD
+SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO(SUBSYSTEM_LIST_FILTER => 'QBATCH')) X
 
--- With named parameters (preferred for UDTFs)
-SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO(
-  SUBSYSTEM_LIST_FILTER => 'QBATCH,QUSRWRK',
-  DETAILED_INFO => 'ALL'
-)) X
-
--- WRONG: missing TABLE() wrapper
-SELECT * FROM QSYS2.ACTIVE_JOB_INFO()  -- Will error
+-- WRONG (SQL0204 / parse error)
+SELECT * FROM QSYS2.ACTIVE_JOB_INFO()
 ```
 
-### UDTF Filter Parameters vs WHERE Clause
-
-For performance-critical UDTFs, use **filter parameters** instead of WHERE:
+### Use UDTF filter parameters, not WHERE
 
 ```sql
--- GOOD: Filter parameter (fast — processed internally)
+-- GOOD: filter is pushed inside the table function
 SELECT * FROM TABLE(QSYS2.JOB_INFO(
   JOB_STATUS_FILTER => '*ACTIVE',
-  JOB_USER_FILTER => 'MYUSER'
-)) X
+  JOB_USER_FILTER   => 'MYUSER'))
 
--- BAD: WHERE clause on unfiltered UDTF (slow — scans everything first)
+-- BAD: scans everything, filters afterward
 SELECT * FROM TABLE(QSYS2.JOB_INFO()) X
 WHERE JOB_STATUS = '*ACTIVE' AND AUTHORIZATION_NAME = 'MYUSER'
 ```
 
-### Always FETCH FIRST
+### Always FETCH FIRST — views can return millions of rows.
 
-IBM i views can return millions of rows. Always limit:
+### Case sensitivity — names are uppercase by default. `UPPER()` user-supplied parameters.
 
-```sql
-SELECT * FROM QSYS2.NETSTAT_INFO
-ORDER BY BYTES_SENT_REMOTELY DESC
-FETCH FIRST 20 ROWS ONLY
-```
+### Two naming conventions — SQL naming `SCHEMA.TABLE` (default) vs system naming `LIBRARY/FILE`. Use SQL naming everywhere.
 
-### Case Sensitivity
-
-IBM i object names are uppercase by default. Use `UPPER()` for parameters:
-
-```sql
-WHERE TABLE_SCHEMA = UPPER('mylib')   -- matches MYLIB
-WHERE JOB_NAME LIKE UPPER('%batch%')  -- matches BATCH
-```
-
-### System vs SQL Naming
-
-IBM i has two naming conventions:
-- **SQL naming** (default): `SCHEMA.TABLE` (e.g., `QSYS2.JOB_INFO`)
-- **System naming**: `LIBRARY/FILE` (e.g., `QSYS2/JOB_INFO`)
-
-Always use SQL naming in queries.
-
-## Common Patterns
-
-### Optional Filters
-
-Use this pattern for parameters that may or may not be provided:
+### Common optional-filter pattern
 
 ```sql
 WHERE (:filter = '' OR COLUMN = UPPER(:filter))
 WHERE (:filter = '*ALL' OR COLUMN = UPPER(:filter))
 ```
 
-### Aggregate Summaries
+## Agent & scripting best practices
 
-Summarize before drilling down:
+The CLI is built for programmatic use: piped output auto-switches to JSON, exit codes are semantic, and `--dry-run` lets an agent plan without hitting the database.
 
-```sql
--- First: how many jobs per subsystem?
-SELECT SUBSYSTEM, COUNT(*) AS JOB_COUNT
-FROM TABLE(QSYS2.ACTIVE_JOB_INFO())
-GROUP BY SUBSYSTEM
-ORDER BY JOB_COUNT DESC
-
--- Then: drill into the busiest subsystem
-SELECT JOB_NAME, CPU_TIME, TEMPORARY_STORAGE
-FROM TABLE(QSYS2.ACTIVE_JOB_INFO(
-  SUBSYSTEM_LIST_FILTER => 'QBATCH'))
-ORDER BY CPU_TIME DESC FETCH FIRST 20 ROWS ONLY
-```
-
-### Error Diagnosis
-
-When SQL fails, check the error and adapt:
+### 1. JSON automatically when piped — no `--format json` needed
 
 ```bash
-# SQL0206 = Column not found → check actual columns
-ibmi columns QSYS2 <view_name>
-
-# SQL0204 = Object not found → check if view exists
-ibmi sql "SELECT SERVICE_NAME FROM QSYS2.SERVICES_INFO WHERE SERVICE_NAME = '<name>'"
-
-# SQL0443 = Trigger/function error → usually means a feature isn't configured
-# (e.g., Db2 Mirror not set up, or missing authority)
+# Not a TTY → JSON output
+count=$(ibmi sql "SELECT COUNT(*) AS CNT FROM SAMPLE.EMPLOYEE" | jq '.data[0].CNT')
+echo "Employee count: $count"
 ```
 
-## Pre-built Tools
+Force JSON explicitly with `--raw` (or `--format json`) when you need to be certain — e.g. inside `bash -c` where stdin/stdout detection varies.
 
-The `tools/ibmi.yaml` file provides schema discovery and SQL validation tools:
+### 2. Semantic exit codes — branch logic without parsing output
 
-| Tool | Description |
-|------|-------------|
-| `list_tables_in_schema` | List tables/views in a schema with row counts |
-| `get_column_info` | Get column metadata for a table |
-| `validate_query` | Validate SQL syntax without executing |
-| `sample_rows` | Generate sample query for a table |
-| `get_table_statistics` | Table size, row count, last used |
-| `search_services` | Search QSYS2.SERVICES_INFO by keyword |
-| `list_service_categories` | Browse all SQL service categories |
+| Code | Name | Meaning |
+|---|---|---|
+| 0 | SUCCESS | Command completed successfully |
+| 1 | GENERAL | Connection failure or unexpected error |
+| 2 | USAGE | Invalid arguments or missing options |
+| 3 | QUERY | SQL execution error |
+| 4 | SECURITY | Read-only violation or forbidden operation |
+| 5 | AUTH | Authentication failure |
 
 ```bash
-ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute
-ibmi tool <tool_name> --tools "$SKILL_DIR/tools/" --dry-run # Preview SQL
+ibmi sql "SELECT 1 FROM SYSIBM.SYSDUMMY1" --system prod
+case $? in
+  0) echo "Connection OK" ;;
+  1) echo "Connection failed — check host/port" ;;
+  3) echo "SQL error — check query syntax" ;;
+  5) echo "Auth failed — check credentials" ;;
+esac
 ```
 
-## Reference Documentation
+JSON errors also carry a machine-readable `error.code` alongside the message:
 
-- [IBM i SQL Services](https://www.ibm.com/support/pages/ibm-i-services-sql) — Complete service reference
-- [Service Catalog](./references/ibmi-services-overview.md) — Category overview with service counts
-- [SQL Patterns](./references/ibmi-sql-patterns.md) — Common query patterns and examples
+```
+GENERAL_ERROR, USAGE_ERROR, CONNECTION_ERROR, QUERY_ERROR, SQL_ERROR,
+SECURITY_VIOLATION, AUTH_FAILURE, NOT_FOUND, TIMEOUT
+```
+
+```bash
+out=$(ibmi sql "SELECT * FROM SAMPLE.BADTABLE" 2>/dev/null)
+code=$(echo "$out" | jq -r '.error.code // empty')
+[ "$code" = "SQL_ERROR" ] && echo "Recognised SQL error; continuing..."
+```
+
+### 3. `--stream` for large result sets (NDJSON, one object per row)
+
+```bash
+ibmi sql "SELECT * FROM SAMPLE.EMPLOYEE" --stream | while IFS= read -r row; do
+  name=$(echo "$row" | jq -r '.FIRSTNME')
+  echo "Processing: $name"
+done
+```
+
+`--stream` is memory-safe for multi-million-row exports and works with any SQL statement (including UDTF-backed views).
+
+### 4. `--dry-run` for safe agent planning
+
+`--dry-run` resolves parameters and prints the final SQL *without* opening a database connection. Use it when an agent is deciding whether to commit to a query:
+
+```bash
+# Preview SQL for a direct query
+ibmi sql "SELECT * FROM SAMPLE.EMPLOYEE WHERE SALARY > 50000" --dry-run
+
+# Preview YAML-tool SQL with bound parameters
+ibmi tool monthly_report --tools ./tools.yaml --schema SAMPLE --month 3 --dry-run
+```
+
+Combine with `ibmi validate` for a no-connection "will this parse + reference real objects?" check.
+
+### 5. `--output` writes results to a file
+
+```bash
+ibmi sql "SELECT * FROM SAMPLE.EMPLOYEE" --format csv --output /tmp/employees.csv
+ibmi sql "SELECT * FROM SAMPLE.EMPLOYEE" --raw        --output /tmp/employees.json
+```
+
+### 6. `--watch <seconds>` for monitoring loops
+
+```bash
+# Sample active jobs every 10s
+ibmi sql "SELECT JOB_NAME, CPU_TIME FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) WHERE JOB_STATUS='RUN'" \
+  --watch 10
+
+# Write a CSV time-series to disk
+ibmi sql "SELECT * FROM TABLE(QSYS2.SYSTEM_STATUS())" \
+  --format csv --output /tmp/status.csv --watch 30
+```
+
+Ctrl+C stops the loop; `--output` re-writes the file each tick (it does not append — redirect `--stream` output to append).
+
+### 7. Multi-system workflows — `--system <name>` per command
+
+```bash
+dev_count=$(ibmi sql  "SELECT COUNT(*) AS C FROM MYLIB.ORDERS" --system dev  | jq '.data[0].C')
+prod_count=$(ibmi sql "SELECT COUNT(*) AS C FROM MYLIB.ORDERS" --system prod | jq '.data[0].C')
+echo "Dev: $dev_count, Prod: $prod_count"
+```
+
+### 8. Put it all together — a text-to-SQL agent step
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+SYSTEM="${IBMI_SYSTEM:-dev}"
+SCHEMA="SAMPLE"
+TABLE="EMPLOYEE"
+
+# 1. Discover
+ibmi tables  "$SCHEMA" --filter "${TABLE}%" --system "$SYSTEM" > /dev/null
+ibmi columns "$SCHEMA" "$TABLE" --system "$SYSTEM" > /dev/null
+
+# 2. Plan — no DB connection needed
+query="SELECT EMPNO, SALARY FROM $SCHEMA.$TABLE WHERE SALARY > 50000 FETCH FIRST 100 ROWS ONLY"
+ibmi validate "$query" --system "$SYSTEM"
+
+# 3. Execute, branching on exit code
+if ibmi sql "$query" --system "$SYSTEM" --raw --output ./result.json; then
+  rows=$(jq '.meta.rows' ./result.json)
+  echo "Retrieved $rows rows"
+else
+  case $? in
+    3) echo "SQL error — inspect ./result.json"; exit 3 ;;
+    5) echo "Auth failure — re-authenticate"; exit 5 ;;
+    *) echo "Unexpected failure ($?)"; exit 1 ;;
+  esac
+fi
+```
+
+For deeper recipes (cross-system diffs, monitoring alert loops, a full text-to-SQL agent), see [`references/agent-scripting.md`](./references/agent-scripting.md).
+
+### Gotchas
+
+- **`--format` is ignored when `--output` has an extension** — the extension wins (`.csv` → CSV regardless of `--format`).
+- **`--read-only` is default-on**; mutation SQL (`INSERT/UPDATE/DELETE/CALL`) requires `--no-read-only` AND a writable system entry.
+- **Positional `key=value`** passed to `ibmi tool` is silently ignored. Use `--kebab-case-name <value>` — flag names come from the YAML param `name` with underscores converted to hyphens.
+- **`--watch` + `--output`** rewrites the same file each tick; to build a time series pipe `--stream` to `tee -a`.
+- **`ibmi tools` with no `--tools`** emits "No tools path specified" — there are no globally-installed YAML tools; every skill ships its own `tools/` directory.
+
+## Error diagnosis cheat sheet
+
+| SQL code | Meaning | Common fix |
+|---|---|---|
+| SQL0204 | Object not found | `ibmi schemas`, `ibmi tables`, or search `QSYS2.SERVICES_INFO` |
+| SQL0206 | Column not found | `ibmi columns <schema> <table>` to get real column list |
+| SQL0418 | Parameter marker not valid | `CAST(:param AS <type>)` in SELECT lists / UDTF arguments |
+| SQL0443 | Trigger/function error | Usually feature not configured (Db2 Mirror not installed, missing authority) |
+| SQL0438 | Application error | Raised by system services — read the message text |
+| SQL0199 | Keyword not expected | Db2 for i dialect difference — e.g. `NULLS LAST` isn't supported; simulate with `CASE` |
+
+## Helper YAML tools
+
+`tools/ibmi.yaml` ships a small set of tools that go beyond what the CLI exposes natively. Native-command duplicates (`list_tables_in_schema`, `get_column_info`, `validate_query`, `sample_rows`) have been removed — use the CLI subcommand instead.
+
+| Tool | Why it exists |
+|------|---|
+| `get_table_statistics` | Detailed row/deleted/I-O counters from `SYSTABLESTAT` beyond what `ibmi describe` exposes |
+| `search_services` | Keyword search over `QSYS2.SERVICES_INFO` with example snippets |
+| `list_service_categories` | Count of services per category — broad catalog browse |
+
+```bash
+ibmi tool get_table_statistics --tools "$SKILL_DIR/tools/" --schema-name QSYS2 --table-name SYSTABLES
+ibmi tool search_services      --tools "$SKILL_DIR/tools/" --keyword JOB
+ibmi tool list_service_categories --tools "$SKILL_DIR/tools/"
+```
+
+## Reference documentation
+
+- **[Agent scripting cookbook](./references/agent-scripting.md)** — deep recipes: cross-system diff, monitoring loop, text-to-SQL agent
+- [Service catalog overview](./references/ibmi-services-overview.md) — category inventory
+- [SQL patterns](./references/ibmi-sql-patterns.md) — reusable query snippets
+- [IBM i CLI docs (upstream)](https://ibm-d95bab6e.mintlify.app/llms.txt) — complete documentation index; key pages:
+  - [CLI commands reference](https://ibm-d95bab6e.mintlify.app/cli/commands.md)
+  - [Agent integration](https://ibm-d95bab6e.mintlify.app/cli/agent-integration.md)
+  - [Output formats](https://ibm-d95bab6e.mintlify.app/cli/output-formats.md)
+  - [YAML tools](https://ibm-d95bab6e.mintlify.app/cli/yaml-tools.md)
+- [IBM i SQL Services](https://www.ibm.com/support/pages/ibm-i-services-sql) — official service reference

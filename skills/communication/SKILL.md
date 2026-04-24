@@ -20,8 +20,6 @@ ibmi tool get_netstat_info --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.NETSTAT_INFO WHERE TCP_STATE = 'ESTABLISHED' FETCH FIRST 20 ROWS ONLY"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Network Connections
@@ -93,7 +91,7 @@ Identify unexpected remote connections or open ports
 
 ### List established connections
 ```sql
-SELECT REMOTE_ADDRESS, REMOTE_PORT, LOCAL_PORT, BOUND_USER,
+SELECT REMOTE_ADDRESS, REMOTE_PORT, LOCAL_PORT, BIND_USER,
        BYTES_SENT_REMOTELY, BYTES_RECEIVED_LOCALLY
   FROM QSYS2.NETSTAT_INFO
   WHERE TCP_STATE = 'ESTABLISHED'
@@ -109,15 +107,17 @@ SELECT INTERNET_ADDRESS, LINE_DESCRIPTION, INTERFACE_STATUS
 ```
 
 ### View HTTP servers
+`QSYS2.HTTP_SERVER_INFO` is a performance-stats view — it returns per-server activity, not configuration.
 ```sql
-SELECT SERVER_NAME, SERVER_STATUS, LISTENING_PORT, AUTOSTART
+SELECT SERVER_NAME, JOB_NAME, SERVER_ACTIVE_THREADS,
+       SERVER_TOTAL_REQUESTS, BYTES_SENT, BYTES_RECEIVED
   FROM QSYS2.HTTP_SERVER_INFO
-  ORDER BY SERVER_STATUS;
+  ORDER BY SERVER_NAME;
 ```
 
 ## Pre-built Tools
 
-The `tools/communication.yaml` file provides 8 ready-to-use tools:
+The `tools/communication.yaml` file provides 11 ready-to-use tools:
 
 | Tool | Description |
 |------|-------------|
@@ -125,10 +125,13 @@ The `tools/communication.yaml` file provides 8 ready-to-use tools:
 | `get_netstat_interface_info` | Network interfaces and IP addresses |
 | `get_netstat_job_info` | Network jobs and their connections |
 | `get_netstat_route_info` | TCP/IP routing table |
-| `get_http_server_info` | HTTP server instances and status |
+| `get_http_server_info` | HTTP server instances and per-server request stats |
 | `get_tcpip_info` | TCP/IP stack configuration |
 | `get_network_attribute_info` | System network attributes |
 | `get_time_protocol_info` | NTP/SNTP time server status |
+| `list_active_db_connections` | Active DRDA/DDM database connections |
+| `get_rdb_entry_info` | Relational database directory entries |
+| `dns_lookup` | Resolve a hostname to IPv4/IPv6 addresses from the IBM i |
 
 ```bash
 ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute

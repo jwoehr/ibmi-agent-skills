@@ -25,8 +25,6 @@ ibmi tool list_output_queues --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.OUTPUT_QUEUE_ENTRIES_BASIC WHERE USER_NAME = 'MYUSER'"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Output Queue Management
@@ -78,12 +76,12 @@ ibmi tool list_output_queues --tools "$SKILL_DIR/tools/"
 
 ### Find spool files for a user
 ```bash
-ibmi tool list_spool_files_basic --tools "$SKILL_DIR/tools/" user_filter=MYUSER
+ibmi tool list_spool_files_basic --tools "$SKILL_DIR/tools/" --user-filter MYUSER
 ```
 
 ### Find old spool files (90+ days)
 ```bash
-ibmi tool find_old_spool_files --tools "$SKILL_DIR/tools/" days_old=90
+ibmi tool find_old_spool_files --tools "$SKILL_DIR/tools/" --days-old 90
 ```
 
 ### Read spool file content

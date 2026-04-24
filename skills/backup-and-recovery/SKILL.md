@@ -20,8 +20,6 @@ ibmi tool get_save_file_info --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.SAVE_FILE_INFO FETCH FIRST 10 ROWS ONLY"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Save File Analysis
@@ -78,24 +76,29 @@ List available tape cartridges and their current status
 ## Quick Examples
 
 ### List recent save files
+Always scope by `SAVE_FILE_LIBRARY` — the unfiltered view scans every save file on the system and will time out.
 ```sql
 SELECT SAVE_FILE_LIBRARY, SAVE_FILE, SAVE_TIMESTAMP, OBJECTS_SAVED, LIBRARY_NAME
   FROM QSYS2.SAVE_FILE_INFO
+  WHERE SAVE_FILE_LIBRARY = 'QGPL'
   ORDER BY SAVE_TIMESTAMP DESC
   FETCH FIRST 20 ROWS ONLY;
 ```
 
 ### Find a saved object
+Narrow to a specific save file library to avoid a full-system scan.
 ```sql
 SELECT SAVE_FILE_LIBRARY, SAVE_FILE, OBJECT_NAME, SAVE_TIMESTAMP
   FROM QSYS2.SAVE_FILE_OBJECTS
-  WHERE OBJECT_NAME = 'MYFILE'
+  WHERE SAVE_FILE_LIBRARY = 'QGPL'
+    AND OBJECT_NAME = 'MYFILE'
   ORDER BY SAVE_TIMESTAMP DESC;
 ```
 
 ### Check tape drive status
 ```sql
-SELECT DEVICE_NAME, DEVICE_STATUS, RESOURCE_NAME, SERIAL_NUMBER
+SELECT DEVICE_NAME, DEVICE_STATUS, DEVICE_TYPE, DEVICE_MODEL,
+       RESOURCE_NAME, RESOURCE_STATUS, DEVICE_DESCRIPTION
   FROM QSYS2.MEDIA_LIBRARY_INFO
   ORDER BY DEVICE_NAME;
 ```

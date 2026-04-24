@@ -88,7 +88,7 @@ ibmi tool list_large_journal_receivers --tools "$SKILL_DIR/tools/" --min-size-mb
 
 ## Pre-built Tools
 
-The `tools/journal.yaml` file provides 10 ready-to-use tools:
+The `tools/journal.yaml` file provides 13 ready-to-use tools:
 
 | Tool | Description |
 |------|-------------|
@@ -102,6 +102,9 @@ The `tools/journal.yaml` file provides 10 ready-to-use tools:
 | `get_journal_detail` | Detailed journal configuration |
 | `list_smapp_access_paths` | SMAPP access path protection status |
 | `get_audit_journal_data_mart_info` | Audit data mart build status |
+| `audit_security_events` | Security-relevant audit journal entries (SYSTOOLS.AUDIT_JOURNAL_AF) |
+| `audit_object_changes` | Object create/delete/change entries (SYSTOOLS.AUDIT_JOURNAL_CO) |
+| `audit_system_changes` | System value / auditing change entries (SYSTOOLS.AUDIT_JOURNAL_SV) |
 
 ```bash
 ibmi tool <tool_name> --tools "$SKILL_DIR/tools/"          # Execute

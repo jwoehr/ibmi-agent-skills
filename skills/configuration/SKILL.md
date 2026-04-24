@@ -20,8 +20,6 @@ ibmi tool get_system_values --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.SYSTEM_VALUE_INFO WHERE SYSTEM_VALUE_NAME = 'QSECURITY'"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### System Values

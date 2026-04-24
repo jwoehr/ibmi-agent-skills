@@ -54,12 +54,12 @@ tools:
 
   list_plan_cache_snapshots:
     source: ibmi-system
-    description: "List existing plan cache snapshot files across all libraries. Shows snapshot files created by DUMP_PLAN_CACHE, DUMP_PLAN_CACHE_TOPN, or DUMP_PLAN_CACHE_PROPERTIES. Use this to find available snapshot data for analysis."
+    description: "List existing plan cache snapshot files in a specific library. Shows snapshot files created by DUMP_PLAN_CACHE, DUMP_PLAN_CACHE_TOPN, or DUMP_PLAN_CACHE_PROPERTIES. Pass '*ALL' to scan every user library — expect long runtimes on busy systems."
     parameters:
       - name: library_filter
         type: string
-        description: "Library to search for snapshot files. Use '*ALL' to search all libraries."
-        default: "*ALL"
+        description: "Library to search for snapshot files (e.g. 'QGPL'). Pass '*ALL' to scan every user library — can time out on systems with many libraries."
+        required: true
       - name: limit
         type: integer
         description: "Maximum number of snapshot files to return."

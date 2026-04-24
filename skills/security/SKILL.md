@@ -20,8 +20,6 @@ ibmi tool list_users_with_special_authorities --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT AUTHORIZATION_NAME, SPECIAL_AUTHORITIES FROM QSYS2.USER_INFO_BASIC WHERE SPECIAL_AUTHORITIES IS NOT NULL"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### User Profiles & Authorities

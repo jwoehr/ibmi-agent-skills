@@ -42,7 +42,7 @@ tools:
 
   get_save_file_objects_view:
     source: ibmi-system
-    description: "Search for objects across save files by name. Requires an object name filter — unfiltered queries will time out on most systems. Use get_save_file_objects_detail for inspecting a specific save file."
+    description: "Search for objects across save files by name. Requires BOTH an object name filter and a save-file library filter — unfiltered scans of QSYS2.SAVE_FILE_OBJECTS routinely time out on busy systems. Use get_save_file_objects_detail for inspecting a specific save file."
     parameters:
       - name: object_name_filter
         type: string
@@ -50,8 +50,8 @@ tools:
         required: true
       - name: library_filter
         type: string
-        description: "Filter by save file library. Leave empty for all libraries."
-        default: ""
+        description: "Save-file library to scope the search (e.g. 'QGPL'). Required; leave the rarely-useful cross-library scan to ad-hoc SQL."
+        required: true
       - name: limit
         type: integer
         description: "Maximum number of object records to return."
@@ -61,10 +61,10 @@ tools:
              OBJECT_NAME, OBJECT_TYPE, SAVE_TIMESTAMP,
              OBJECT_SIZE, OBJECT_OWNER
         FROM QSYS2.SAVE_FILE_OBJECTS
-        WHERE (:object_name_filter = '' OR OBJECT_NAME LIKE UPPER(:object_name_filter))
-          AND (:library_filter = '' OR SAVE_FILE_LIBRARY = UPPER(:library_filter))
+        WHERE OBJECT_NAME LIKE UPPER(:object_name_filter)
+          AND SAVE_FILE_LIBRARY = UPPER(:library_filter)
         ORDER BY SAVE_TIMESTAMP DESC
-        FETCH FIRST 50 ROWS ONLY
+        FETCH FIRST :limit ROWS ONLY
     security:
       readOnly: true
     annotations:

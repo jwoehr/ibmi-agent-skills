@@ -22,13 +22,11 @@ ibmi tools --tools "$SKILL_DIR/tools/" --toolset database_utility_default
 ibmi tool list_sysfiles --tools "$SKILL_DIR/tools/"
 
 # Run with parameters
-ibmi tool object_statistics --tools "$SKILL_DIR/tools/" library_name=MYLIB object_type='*PGM'
+ibmi tool object_statistics --tools "$SKILL_DIR/tools/" --library-name MYLIB --object-type '*PGM'
 
 # Ad-hoc SQL for custom queries
 ibmi sql "SELECT * FROM QSYS2.SYSFILES WHERE SYSTEM_TABLE_SCHEMA = 'MYLIB'"
 ```
-
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
 
 ## Service Selection Guide
 
@@ -90,22 +88,22 @@ The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for 
 
 ### List files in a library
 ```bash
-ibmi tool list_sysfiles --tools "$SKILL_DIR/tools/" library_filter=MYLIB
+ibmi tool list_sysfiles --tools "$SKILL_DIR/tools/" --library-filter MYLIB
 ```
 
 ### Check partition statistics
 ```bash
-ibmi tool get_partition_statistics --tools "$SKILL_DIR/tools/" schema_filter=MYLIB
+ibmi tool get_partition_statistics --tools "$SKILL_DIR/tools/" --schema-filter MYLIB
 ```
 
 ### Find related objects before changing a file
 ```bash
-ibmi tool find_related_objects --tools "$SKILL_DIR/tools/" library_name=MYLIB file_name=CUSTMAST
+ibmi tool find_related_objects --tools "$SKILL_DIR/tools/" --library-name MYLIB --file-name CUSTMAST
 ```
 
 ### Find objects unused for over a year
 ```bash
-ibmi tool find_unused_objects --tools "$SKILL_DIR/tools/" library_name=MYLIB unused_days=365
+ibmi tool find_unused_objects --tools "$SKILL_DIR/tools/" --library-name MYLIB --unused-days 365
 ```
 
 ### Compare files between libraries

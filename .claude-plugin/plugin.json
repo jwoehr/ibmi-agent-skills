@@ -1,10 +1,10 @@
 {
   "name": "ibmi-agent-skills",
-  "description": "24 agent skills with 219+ tools for IBM i SQL Services — full coverage of work management, database, security, storage, communication, and system administration via QSYS2 and SYSTOOLS services.",
-  "version": "1.2.0",
+  "description": "24 agent skills with 215+ tools for IBM i SQL Services — full coverage of work management, database, security, storage, communication, and system administration via QSYS2 and SYSTOOLS services. Driven by the @ibm/ibmi-cli.",
+  "version": "1.3.0",
   "author": {
     "name": "Adam Shedivy",
-    "email": "ajshedivy@gmail.com"
+    "email": "ajshedivyaj@gmail.com"
   },
   "homepage": "https://github.com/ajshedivy/ibmi-agent-skills",
   "repository": "https://github.com/ajshedivy/ibmi-agent-skills",
@@ -45,19 +45,5 @@
     "./skills/system-health",
     "./skills/work-management"
   ],
-  "mcpServers": {
-    "ibmi-mcp-server": {
-      "command": "npx",
-      "args": ["-y", "@ibm/ibmi-mcp-server@latest"],
-      "env": {
-        "NODE_OPTIONS": "--no-deprecation",
-        "DB2i_HOST": "",
-        "DB2i_USER": "",
-        "DB2i_PASS": "",
-        "DB2i_PORT": "8076",
-        "MCP_TRANSPORT_TYPE": "stdio",
-        "IBMI_ENABLE_EXECUTE_SQL": "true"
-      }
-    }
-  }
+  "mcpServers": {}
 }

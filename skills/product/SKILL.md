@@ -20,8 +20,6 @@ ibmi tool list_software_products --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.SOFTWARE_PRODUCT_INFO WHERE INSTALLED = 'YES' AND LOAD_ERROR = 'YES'"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Software Products

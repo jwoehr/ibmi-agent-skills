@@ -25,8 +25,6 @@ ibmi tool get_collection_services_config --tools "$SKILL_DIR/tools/"
 ibmi sql "SELECT * FROM QSYS2.COLLECTION_SERVICES_INFO"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` and `describe_sql_object` for MCP-connected agents.
-
 ## Service Selection Guide
 
 ### Collection Services

@@ -1,6 +1,6 @@
 # IBM i Agent Skills
 
-Agent skills for AI coding assistants to work with IBM i systems. **24 skills** covering all IBM i SQL Service categories with **219+ pre-built tools**.
+Agent skills for AI coding assistants to work with IBM i systems. **24 skills** covering all IBM i SQL Service categories with **215+ pre-built tools**, driven by the [`ibmi` CLI](https://www.npmjs.com/package/@ibm/ibmi-cli).
 
 ## What are Agent Skills?
 
@@ -12,7 +12,7 @@ Skills are organized into **plugins** so you can install only what you need:
 
 | Plugin | Skills | Tools | Audience |
 |--------|--------|-------|----------|
-| **ibmi-core** | 1 (ibmi) | 7 | Everyone — CLI, text-to-SQL, schema discovery |
+| **ibmi-core** | 1 (ibmi) | 3 | Everyone — CLI, text-to-SQL, schema discovery, agent scripting |
 | **ibmi-database** | 5 | 51 | DBAs, SQL developers |
 | **ibmi-system** | 18 | 161 | Sysadmins, operators, security, DevOps |
 | **ibmi-all** | 24 | 219+ | Install everything |
@@ -73,42 +73,71 @@ npx skills add ./skills -g -a claude-code -y --all
 
 ## Prerequisites
 
-The [`ibmi-mcp-server`](https://github.com/IBM/ibmi-mcp-server) must be connected to your agent, providing:
-- `describe_sql_object` - Get DDL/metadata for IBM i objects
-- `execute_sql` - Run SQL SELECT statements on IBM i
+The only dependency is the [`ibmi` CLI](https://www.npmjs.com/package/@ibm/ibmi-cli), which handles SQL execution, schema discovery, DDL generation, and YAML tool invocation. All skills in this repo are built on it.
 
-### Setting up the MCP Server
-
-Add the following to your agent's MCP settings (`.mcp.json` for Claude Code):
-
-```json
-{
-  "mcpServers": {
-    "ibmi-mcp-server": {
-      "command": "npx",
-      "args": ["-y", "@ibm/ibmi-mcp-server@latest"],
-      "env": {
-        "NODE_OPTIONS": "--no-deprecation",
-        "DB2i_HOST": "your-hostname.com",
-        "DB2i_USER": "your-username",
-        "DB2i_PASS": "your-password",
-        "DB2i_PORT": "8076",
-        "MCP_TRANSPORT_TYPE": "stdio",
-        "IBMI_ENABLE_EXECUTE_SQL": "true"
-      }
-    }
-  }
-}
-```
-
-### IBM i CLI (Optional)
-
-The [`ibmi` CLI](https://github.com/ajshedivy/ibmi-cli) provides direct tool execution:
+### Install the CLI
 
 ```bash
-ibmi tool list_active_jobs --tools skills/work-management/tools/
-ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
+# Recommended — daily use
+npm i -g @ibm/ibmi-cli
+
+# Or one-shot via npx (no install)
+npx -y @ibm/ibmi-cli --help
 ```
+
+The `ibmi` skill runs a preflight check before each session — if the CLI is missing, it will walk you through the install. Power users can just install it up-front with the command above.
+
+### Add a system connection
+
+The CLI keeps system connections in its own config. Add one, test it, and set it as the default:
+
+```bash
+# Add a system (you'll be prompted for the password; re-run with --password to pipe non-interactively)
+ibmi system add dev \
+  --host your-ibmi-host.example.com \
+  --user YOURUSER \
+  --port 8076
+
+# Make it the default so other commands don't need --system
+ibmi system default dev
+
+# Verify connectivity
+ibmi system test dev
+
+# Inspect what's configured
+ibmi system list
+ibmi config show            # shows effective config and which file each value came from
+```
+
+Need multiple systems? Just add more and target them per-command with `--system`:
+
+```bash
+ibmi system add prod --host prod.example.com --user YOURUSER --port 8076
+ibmi --system prod sql "SELECT 1 FROM SYSIBM.SYSDUMMY1"
+```
+
+For CI or ephemeral environments, set credentials via environment variables instead of the config file:
+
+```bash
+export DB2i_HOST=your-ibmi-host.example.com
+export DB2i_USER=YOURUSER
+export DB2i_PASS=your-password
+ibmi sql "SELECT 1 FROM SYSIBM.SYSDUMMY1"
+```
+
+### Smoke test
+
+```bash
+# Should print a few schemas
+ibmi schemas --limit 5
+
+# Run a skill tool directly (after installing a plugin or cloning)
+ibmi tool list_active_jobs \
+  --tools ./skills/work-management/tools/ \
+  --limit 5
+```
+
+Further docs: [CLI commands](https://ibm-d95bab6e.mintlify.app/cli/commands.md) · [agent integration](https://ibm-d95bab6e.mintlify.app/cli/agent-integration.md) · [full docs index](https://ibm-d95bab6e.mintlify.app/llms.txt).
 
 ## Available Skills
 
@@ -116,7 +145,7 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 
 | Skill | Tools | Description |
 |-------|-------|-------------|
-| `ibmi` | 7 | CLI usage, text-to-SQL methodology, schema discovery, SQL validation |
+| `ibmi` | 3 | CLI usage, text-to-SQL methodology, schema discovery, SQL validation, agent scripting patterns (exit codes, NDJSON, `--dry-run`, multi-system) |
 
 ### Database (ibmi-database plugin)
 
@@ -169,7 +198,7 @@ ibmi sql "SELECT * FROM TABLE(QSYS2.ACTIVE_JOB_INFO()) FETCH FIRST 10 ROWS ONLY"
 | `journal` | 13 | Journals, receivers, journaled objects, audit events |
 | `mirror` | 12 | Db2 Mirror status, replication, NRG, reclone |
 
-**Total: 24 skills, 219+ tools**
+**Total: 24 skills, 215+ tools**
 
 ## Managing Skills
 

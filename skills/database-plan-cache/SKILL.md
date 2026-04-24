@@ -22,13 +22,13 @@ ibmi tools --tools "$SKILL_DIR/tools/" --toolset database_plan_cache_default
 ibmi tool list_plan_cache_services --tools "$SKILL_DIR/tools/"
 
 # Run with parameters
-ibmi tool get_plan_cache_procedure_details --tools "$SKILL_DIR/tools/" procedure_name=DUMP_PLAN_CACHE
+ibmi tool get_plan_cache_procedure_details --tools "$SKILL_DIR/tools/" --procedure-name DUMP_PLAN_CACHE
 
 # Ad-hoc SQL for plan cache analysis
 ibmi sql "SELECT * FROM QSYS2.SERVICES_INFO WHERE SERVICE_CATEGORY = 'DATABASE-PLAN CACHE'"
 ```
 
-The `ibmi-mcp-server` also provides `execute_sql` for MCP-connected agents. Plan cache CALL operations require a connection that supports write operations.
+Plan cache CALL operations require a connection that supports write operations (the default `dev` system, not a `READ_ONLY` system).
 
 ## Service Selection Guide
 
@@ -95,7 +95,7 @@ ibmi tool list_plan_cache_services --tools "$SKILL_DIR/tools/"
 
 ### Get procedure parameters
 ```bash
-ibmi tool get_plan_cache_procedure_details --tools "$SKILL_DIR/tools/" procedure_name=DUMP_PLAN_CACHE_TOPN
+ibmi tool get_plan_cache_procedure_details --tools "$SKILL_DIR/tools/" --procedure-name DUMP_PLAN_CACHE_TOPN
 ```
 
 ### Find existing snapshots
